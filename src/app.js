@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { lerToken, hashSenha } from "./seguranca.js";
 import { ErroHttp } from "./util.js";
+import { registrarCabecalhos } from "./cabecalhos.js";
 import { rotasSessao } from "./rotas/sessao.js";
 import { rotasEmpresas } from "./rotas/empresas.js";
 import { rotasCadastros } from "./rotas/cadastros.js";
@@ -28,15 +29,22 @@ export async function garantirAdmin(db, config, log) {
     return;
   }
   await db.query(
-    "INSERT INTO usuarios (nome, email, senha_hash, papel, trocar_senha) VALUES ($1, $2, $3, 'admin', false)",
+    "INSERT INTO usuarios (nome, email, senha_hash, papel, trocar_senha) VALUES ($1, $2, $3, 'admin', false) ON CONFLICT (email) DO NOTHING",
     [config.admin.nome, config.admin.email, hashSenha(config.admin.senha)]
   );
   log?.info(`Administrador ${config.admin.email} criado.`);
 }
 
 export async function criarApp({ config, db, logger = false, fetchImpl }) {
-  const app = Fastify({ logger, bodyLimit: 15 * 1024 * 1024, trustProxy: true });
+  const app = Fastify({
+    logger,
+    // A Vercel aceita no máximo 4,5 MB por pedido; certificado e XML de compra cabem com folga.
+    bodyLimit: (config.serverless ? 4 : 15) * 1024 * 1024,
+    // Atrás de proxy (Vercel, nginx): o IP do cliente vem do X-Forwarded-For (limite de login).
+    trustProxy: true,
+  });
   await app.register(cookie);
+  registrarCabecalhos(app, { https: config.cookieSeguro });
 
   app.decorateRequest("usuario", null);
 

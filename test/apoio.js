@@ -6,7 +6,7 @@ import { criarApp } from "../src/app.js";
 
 export const ADMIN = { email: "admin@teste.com", senha: "senha-forte-12345" };
 
-export async function servidorTeste({ fetchImpl } = {}) {
+export async function servidorTeste({ fetchImpl, config: extra = {} } = {}) {
   const config = carregarConfig({
     modoSefaz: "simulado",
     databaseUrl: null,
@@ -16,6 +16,8 @@ export async function servidorTeste({ fetchImpl } = {}) {
     admin: { nome: "Admin", email: ADMIN.email, senha: ADMIN.senha },
     respTec: { CNPJ: "11222333000181", xContato: "Teste", email: "a@b.com", fone: "85999999999" },
     webDir: "./nao-existe",
+    serverless: false,
+    ...extra,
   });
   const db = await abrirBanco(config);
   const app = await criarApp({ config, db, fetchImpl });

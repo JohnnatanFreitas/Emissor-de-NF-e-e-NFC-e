@@ -18,13 +18,25 @@ function embrulhar(executar) {
   };
 }
 
-async function abrirPostgres(url) {
+async function abrirPostgres(url, { serverless = false } = {}) {
   const pg = (await import("pg")).default;
   pg.types.setTypeParser(INT8, (v) => Number(v));
   pg.types.setTypeParser(NUMERIC, (v) => Number(v));
   pg.types.setTypeParser(DATE, (v) => v);
   // Datas do dia (painel, vencimentos) no horário de Brasília, não em UTC.
-  const pool = new pg.Pool({ connectionString: url, max: 10, options: `-c timezone=${FUSO}` });
+  // Na Vercel cada instância da função tem o seu pool: poucas conexões, liberadas logo.
+  const pool = new pg.Pool({
+    connectionString: url,
+    max: serverless ? 3 : 10,
+    idleTimeoutMillis: serverless ? 10_000 : 30_000,
+    connectionTimeoutMillis: 10_000,
+    options: `-c timezone=${FUSO}`,
+  });
+  pool.on("error", () => {}); // conexão ociosa derrubada pelo servidor: o pool abre outra
+  // Fuso também como padrão do banco (vale até se a conexão passar por um pgbouncer).
+  await pool
+    .query(`DO $$ BEGIN EXECUTE format('ALTER DATABASE %I SET timezone TO %L', current_database(), '${FUSO}'); END $$`)
+    .catch(() => {});
   const base = embrulhar((sql, params) => pool.query(sql, params));
   return {
     tipo: "postgres",
@@ -75,12 +87,32 @@ async function abrirPglite(dir) {
   };
 }
 
+// Trava do esquema: várias instâncias da função subindo juntas não criam as tabelas ao mesmo tempo.
+const TRAVA_ESQUEMA = 7_420_011;
+
 export async function abrirBanco(config) {
-  const db = config.databaseUrl ? await abrirPostgres(config.databaseUrl) : await abrirPglite(config.pgliteDir);
-  await db.exec(ESQUEMA);
-  // Servidor caiu no meio de um envio: a nota fica "pendente" e só a consulta resolve.
-  await db.query("UPDATE notas SET status = 'pendente' WHERE status = 'enviando'");
-  // Inutilização que ficou sem resposta pode ser enviada de novo (a SEFAZ responde 563 se já registrou).
-  await db.query("UPDATE inutilizacoes SET status = 'sem_resposta' WHERE status = 'enviando'");
+  const db = config.databaseUrl ? await abrirPostgres(config.databaseUrl, config) : await abrirPglite(config.pgliteDir);
+  if (db.tipo === "postgres") {
+    await db.tx(async (q) => {
+      await q.query(`SELECT pg_advisory_xact_lock(${TRAVA_ESQUEMA})`);
+      await q.query(ESQUEMA);
+    });
+  } else {
+    await db.exec(ESQUEMA);
+  }
+  await liberarEnviosParados(db, config);
   return db;
+}
+
+/**
+ * Envio interrompido (servidor caiu, função encerrada no meio): a nota vira "pendente" e só a
+ * consulta resolve; a inutilização fica "sem_resposta" e pode ser enviada de novo.
+ * Num servidor único, tudo que estava "enviando" ao subir parou. Na Vercel outra instância pode
+ * estar enviando agora: só conta como parado o que passou do tempo máximo de uma função.
+ */
+export async function liberarEnviosParados(db, config) {
+  const cond = config.serverless ? "AND coalesce(enviando_desde, emitida_em) < now() - interval '10 minutes'" : "";
+  const condInut = config.serverless ? "AND criado_em < now() - interval '10 minutes'" : "";
+  await db.query(`UPDATE notas SET status = 'pendente' WHERE status = 'enviando' ${cond}`);
+  await db.query(`UPDATE inutilizacoes SET status = 'sem_resposta' WHERE status = 'enviando' ${condInut}`);
 }

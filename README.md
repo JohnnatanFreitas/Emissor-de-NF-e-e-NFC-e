@@ -24,6 +24,8 @@ O guia de instalação para o usuário está em **[COMO-INSTALAR-PAC-FATURAMENTO
 Sobem `emissor-nfe` (sistema), `emissor-banco` (Postgres 16) e `emissor-backup` (backup diário, 14 dias).
 Endereço: http://127.0.0.1:3000.
 
+**Na Vercel:** veja **[docs/VERCEL.md](docs/VERCEL.md)** (Postgres Neon, variáveis e proteção do site).
+
 **Sem Docker (desenvolvimento):** sem `DATABASE_URL` o sistema usa o **PGlite** (o próprio Postgres rodando dentro
 do Node, numa pasta), então não precisa instalar banco.
 
@@ -31,7 +33,7 @@ do Node, numa pasta), então não precisa instalar banco.
 npm install
 npm run web:build          # compila o front (web/) em web/dist
 npm run dev:simulado       # usa .env.dev: SEFAZ simulada + PGlite, em http://127.0.0.1:3077
-npm test                   # 35 testes (PGlite em memória, SEFAZ simulada, XSD oficial)
+npm test                   # 44 testes (PGlite em memória, SEFAZ simulada, XSD oficial)
 ```
 
 Para o front com recarga automática: `npm --prefix web run dev` (Vite em 5173, com proxy de `/api` para a porta 3000).
@@ -85,3 +87,18 @@ test/                              testes (node:test)
 - Perfis fiscais padrão são ponto de partida: revise CST, alíquotas e CFOP de cada empresa.
 - A tabela de alíquota interna por UF (DIFAL) fica em `src/fiscal/perfis-padrao.js`; confira a legislação vigente.
 - Ainda não implementado: contingência (SVC/EPEC), devolução (finNFe 4), frete e transportadora.
+
+## Segurança
+
+- **Sessão:** cookie `HttpOnly`, `SameSite=Strict`, `Secure` em HTTPS, assinado (HMAC-SHA256), 12 h.
+  Cai ao trocar a senha ou desativar o usuário. Escrita exige o cabeçalho `X-Argus` (anti-CSRF).
+- **Senhas:** scrypt, mínimo de 12 caracteres. Login limitado a 10 erros por e-mail e 30 por IP em 15 min
+  (no banco, vale para todas as instâncias). E-mail inexistente e senha errada têm a mesma resposta e o mesmo tempo.
+- **Certificados A1 e CSC:** cifrados com AES-256-GCM (`MASTER_KEY`); lidos em JavaScript (node-forge), sem arquivo temporário.
+- **Cabeçalhos:** CSP restrita (só scripts do próprio site), `X-Frame-Options DENY`, `nosniff`, HSTS em HTTPS,
+  `Permissions-Policy`, e a API com `Cache-Control: no-store`. Valores em `src/cabecalhos.js` e no `vercel.json`
+  (um teste confere que os dois são iguais).
+- **DANFE:** abre isolado (CSP `sandbox`): mesmo um texto malicioso na nota não alcança a sessão.
+- **XML de compra:** arquivo com `DOCTYPE`/`ENTITY` é recusado antes de ser lido.
+- **Papéis:** cada rota confere a ação do papel (`src/acesso.js`) e o acesso à empresa.
+- **Dependências:** `npm audit --omit=dev` sem vulnerabilidades (fast-xml-parser 5 forçado também na node-sped-nfe).

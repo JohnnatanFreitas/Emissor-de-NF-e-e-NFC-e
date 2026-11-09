@@ -91,8 +91,8 @@ export async function emitirNota({ db, config, empresaId, modelo, entrada, pedid
     const { xml, chave } = await montarAssinarValidar({ sefaz, empresa, doc, modelo, serie, numero, natureza, config, infCpl: entrada.infCpl });
     const n = await q.one(
       `INSERT INTO notas (empresa_id, modelo, serie, numero, chave, status, ambiente, cliente_id, destinatario, pedido_id, natureza,
-                          total_cent, totais, dados, xml_assinado)
-       VALUES ($1,$2,$3,$4,$5,'enviando',$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+                          total_cent, totais, dados, xml_assinado, enviando_desde)
+       VALUES ($1,$2,$3,$4,$5,'enviando',$6,$7,$8,$9,$10,$11,$12,$13,$14,now()) RETURNING *`,
       [
         empresa.id, modelo, serie, numero, chave, empresa.ambiente, modelo === "55" ? doc.cliente.id : null, doc.destinatario, pedidoId, natureza,
         doc.calculo.totais.total_cent, JSON.stringify(doc.calculo.totais),
@@ -214,7 +214,7 @@ export async function reenviarNota({ db, config, nota, fabrica = fabricaPadrao, 
       sefaz, empresa, doc, modelo: n.modelo, serie: n.serie, numero: n.numero, natureza: n.natureza, config, infCpl: n.dados.entrada?.infCpl,
     });
     return q.one(
-      `UPDATE notas SET status = 'enviando', chave = $2, xml_assinado = $3, total_cent = $4, totais = $5, dados = $6,
+      `UPDATE notas SET status = 'enviando', enviando_desde = now(), chave = $2, xml_assinado = $3, total_cent = $4, totais = $5, dados = $6,
               destinatario = $7, ambiente = $8, c_stat = NULL, x_motivo = NULL WHERE id = $1 RETURNING *`,
       [
         n.id, chave, xml, doc.calculo.totais.total_cent, JSON.stringify(doc.calculo.totais),

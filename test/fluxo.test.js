@@ -19,7 +19,8 @@ test("sem sessão: 401; escrita sem X-Argus: 403", async () => {
   assert.equal((await s.chamar("GET", "/api/eu")).status, 401);
   assert.equal((await s.chamar("POST", "/api/sessao", { email: "x", senha: "y" }, { semCsrf: true })).status, 403);
   const saude = await s.chamar("GET", "/api/saude");
-  assert.equal(saude.json.banco, "pglite");
+  assert.deepEqual(Object.keys(saude.json).sort(), ["ok", "versao"]);
+  assert.equal((await s.chamar("GET", "/api/saude/detalhes")).status, 401);
 });
 
 test("login do admin do .env e senha errada", async () => {

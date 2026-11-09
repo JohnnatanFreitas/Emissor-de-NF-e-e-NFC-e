@@ -6,9 +6,12 @@ const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, pa
 
 /** Lê o XML e devolve cabeçalho e itens com o custo de cada item (produto + IPI + ST + frete + outras - desconto). */
 export function lerXmlCompra(xml) {
+  const texto = String(xml ?? "");
+  // NF-e nunca traz DOCTYPE/ENTITY; um arquivo com eles só serve para atacar o leitor de XML.
+  if (/<!DOCTYPE|<!ENTITY/i.test(texto)) throw invalido("Arquivo XML recusado: não parece uma NF-e (tem DOCTYPE/ENTITY).");
   let j;
   try {
-    j = parser.parse(String(xml ?? ""));
+    j = parser.parse(texto);
   } catch {
     throw invalido("Arquivo XML ilegível.");
   }

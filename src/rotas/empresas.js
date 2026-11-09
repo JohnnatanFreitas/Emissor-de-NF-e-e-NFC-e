@@ -76,7 +76,7 @@ export function normalizarPerfil(d, parcial) {
 async function aplicarSegredos(d, empresa, config, campos) {
   if (d.certificado_base64) {
     const pfx = Buffer.from(String(d.certificado_base64).replace(/^data:[^,]+,/, ""), "base64");
-    const info = await lerCertificado(pfx, d.certificado_senha, { openssl: config.openssl });
+    const info = await lerCertificado(pfx, d.certificado_senha);
     conferirCertificado(info, campos.cnpj ?? empresa?.cnpj);
     campos.cert_cifrado = cifrar(pfx, config.masterKey);
     campos.cert_senha_cifrada = cifrar(String(d.certificado_senha ?? ""), config.masterKey);

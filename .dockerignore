@@ -9,3 +9,7 @@ dados
 receipts
 review-receipts
 test
+.env.dev
+*.exe
+docs/telas
+.claude

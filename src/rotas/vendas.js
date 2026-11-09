@@ -5,6 +5,8 @@ import { emitirNota, consultarNota, reenviarNota, cancelarNota, cceNota } from "
 import { resumoNota, notaCompleta } from "../servicos/notas-vista.js";
 import { inutilizarNumeracao, inutilizacaoPublica } from "../servicos/inutilizacao.js";
 import { gerarDanfe } from "../nfe/danfe.js";
+import { CSP_DANFE } from "../cabecalhos.js";
+import { liberarEnviosParados } from "../db.js";
 import { conflito, invalido, naoEncontrado, texto, hojeISO, somarDias } from "../util.js";
 
 const FORMAS = ["01", "02", "03", "04", "05", "10", "11", "12", "13", "15", "16", "17", "18", "19", "90", "99"];
@@ -204,6 +206,8 @@ export async function rotasVendas(api, { db, config }) {
 
   api.get("/empresas/:eid/notas", async (req) => {
     const e = await empresaDaRota(req, db);
+    // Na Vercel não há "início do servidor": envios interrompidos são liberados aqui.
+    if (config.serverless) await liberarEnviosParados(db, config);
     const params = [e.id];
     let where = "empresa_id = $1";
     if (["55", "65"].includes(req.query.modelo)) where += ` AND modelo = $${params.push(req.query.modelo)}`;
@@ -230,7 +234,7 @@ export async function rotasVendas(api, { db, config }) {
     const { e, n } = await notaDaRota(req);
     const eventos = await db.many("SELECT * FROM nota_eventos WHERE nota_id = $1 AND registrado ORDER BY id", [n.id]);
     const html = await gerarDanfe({ empresa: e, nota: n, eventos });
-    reply.header("content-type", "text/html; charset=utf-8");
+    reply.header("content-type", "text/html; charset=utf-8").header("content-security-policy", CSP_DANFE);
     return html;
   });
 

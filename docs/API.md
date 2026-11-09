@@ -42,8 +42,9 @@ type Eu = { id: number; nome: string; email: string; papel: 'admin'|'equipe'|'ve
 
 ## Sistema
 
-| GET | `/api/saude` | → `{ ok: true, versao, banco: 'postgres'|'pglite', modo_sefaz: 'sefaz'|'simulado' }` (sem login) |
+| GET | `/api/saude` | → `{ ok: true, versao }` (sem login; confere o banco) |
 |---|---|---|
+| GET | `/api/saude/detalhes` | → `{ ok, versao, banco: 'postgres'|'pglite', modo_sefaz, serverless }` (com login) |
 | GET | `/api/cnpj/:cnpj` | → `DadosReceita` (consulta BrasilAPI). 404 se não achar. |
 
 ```ts

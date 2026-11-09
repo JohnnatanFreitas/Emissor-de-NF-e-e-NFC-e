@@ -17,32 +17,47 @@ const usuarioPublico = (u) => ({
   ativo: u.ativo, trocar_senha: u.trocar_senha, criado_em: u.criado_em,
 });
 
+// Limite de tentativas recusadas em 15 minutos: por e-mail (protege a conta) e por IP (protege
+// contra quem testa vários e-mails). Fica no banco para valer em todas as instâncias do servidor.
+const LIMITE_EMAIL = 10;
+const LIMITE_IP = 30;
+// Hash de uma senha qualquer: e-mail inexistente custa o mesmo tempo que senha errada
+// (não dá para descobrir quais e-mails existem pelo tempo de resposta).
+const HASH_FALSO = hashSenha("argus-senha-que-nao-existe");
+
 export async function rotasSessao(api, { db, config, fetchImpl }) {
-  // Limite simples de tentativas de login por IP+email (10 em 15 minutos).
-  const tentativas = new Map();
-  const JANELA = 15 * 60 * 1000;
 
   const gravarCookie = (reply, u) => {
     const token = assinarToken({ uid: u.id, v: u.senha_hash.slice(-12) }, config.jwtSecret);
     reply.setCookie(COOKIE, token, { path: "/", httpOnly: true, sameSite: "strict", secure: config.cookieSeguro, maxAge: 12 * 3600 });
   };
 
-  api.get("/saude", async () => ({ ok: true, versao: VERSAO, banco: db.tipo, modo_sefaz: config.modoSefaz }));
+  // Saúde pública só diz se está no ar; detalhes (banco, modo da SEFAZ) só para quem entrou.
+  api.get("/saude", async (req) => {
+    await db.one("SELECT 1");
+    return { ok: true, versao: VERSAO };
+  });
+  api.get("/saude/detalhes", async () => ({ ok: true, versao: VERSAO, banco: db.tipo, modo_sefaz: config.modoSefaz, serverless: config.serverless }));
 
   api.post("/sessao", async (req, reply) => {
     const email = texto(req.body?.email, 200).toLowerCase();
-    const senha = String(req.body?.senha ?? "");
-    const chave = `${req.ip}|${email}`;
-    const agora = Date.now();
-    const lista = (tentativas.get(chave) ?? []).filter((t) => agora - t < JANELA);
-    if (lista.length >= 10) throw new ErroHttp(429, "Muitas tentativas. Aguarde alguns minutos.");
+    const senha = String(req.body?.senha ?? "").slice(0, 1024);
+    const ip = String(req.ip ?? "").slice(0, 64);
+    const { por_email, por_ip } = await db.one(
+      `SELECT count(*) FILTER (WHERE email = $1)::int AS por_email, count(*) FILTER (WHERE ip = $2)::int AS por_ip
+         FROM tentativas_login WHERE criado_em > now() - interval '15 minutes' AND (email = $1 OR ip = $2)`,
+      [email, ip]
+    );
+    if (por_email >= LIMITE_EMAIL || por_ip >= LIMITE_IP) throw new ErroHttp(429, "Muitas tentativas. Aguarde 15 minutos.");
     const u = email ? await db.one("SELECT * FROM usuarios WHERE email = $1", [email]) : null;
-    if (!u || !u.ativo || !conferirSenha(senha, u.senha_hash)) {
-      lista.push(agora);
-      tentativas.set(chave, lista);
+    const senhaOk = conferirSenha(senha, u?.senha_hash ?? HASH_FALSO);
+    if (!u || !u.ativo || !senhaOk) {
+      await db.query("INSERT INTO tentativas_login (email, ip) VALUES ($1, $2)", [email, ip]);
+      // Faxina das tentativas antigas (de vez em quando, sem custo para quem acertou a senha).
+      if (Math.random() < 0.05) await db.query("DELETE FROM tentativas_login WHERE criado_em < now() - interval '1 day'");
       throw new ErroHttp(401, "E-mail ou senha incorretos.");
     }
-    tentativas.delete(chave);
+    await db.query("DELETE FROM tentativas_login WHERE email = $1", [email]);
     gravarCookie(reply, u);
     return eu(u);
   });

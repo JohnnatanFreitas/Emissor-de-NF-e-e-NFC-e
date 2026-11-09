@@ -163,6 +163,18 @@ CREATE TABLE IF NOT EXISTS nota_eventos (
   criado_em timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE notas ADD COLUMN IF NOT EXISTS enviando_desde timestamptz;
+
+-- Tentativas de login recusadas (limite por e-mail e por IP, válido entre instâncias do servidor).
+CREATE TABLE IF NOT EXISTS tentativas_login (
+  id bigserial PRIMARY KEY,
+  email text NOT NULL,
+  ip text NOT NULL,
+  criado_em timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS tentativas_login_email ON tentativas_login (email, criado_em);
+CREATE INDEX IF NOT EXISTS tentativas_login_ip ON tentativas_login (ip, criado_em);
+
 -- Faixas de numeração inutilizadas na SEFAZ (números pulados que nunca viraram nota autorizada).
 CREATE TABLE IF NOT EXISTS inutilizacoes (
   id serial PRIMARY KEY,

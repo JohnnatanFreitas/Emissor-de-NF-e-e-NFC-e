@@ -7,11 +7,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Tools } from "node-sped-nfe";
+import { SignedXml } from "xml-crypto";
 import { validarXsd } from "../src/nfe/xsd.js";
 import { calcularDocumento } from "../src/fiscal/calculo.js";
 import { perfisPadrao } from "../src/fiscal/perfis-padrao.js";
 import { montarXml } from "../src/nfe/montar.js";
-import { lerCertificado, conferirCertificado } from "../src/certificado.js";
+import { lerCertificado, conferirCertificado, abrirPfx } from "../src/certificado.js";
 
 
 let tmp;
@@ -49,7 +50,7 @@ async function validar(xml) {
 }
 
 async function assinar(xml, mod, extra = {}) {
-  const tools = new Tools({ mod, tpAmb: 2, UF: "CE", versao: "4.00", CNPJ: EMP.cnpj, xmllint: "xmllint", ...extra }, { pfx, senha: "1234" });
+  const tools = new Tools({ mod, tpAmb: 2, UF: "CE", versao: "4.00", CNPJ: EMP.cnpj, xmllint: false, ...extra }, { pfx, senha: "1234", pem: abrirPfx(pfx, "1234") });
   return tools.xmlSign(xml);
 }
 
@@ -75,6 +76,10 @@ for (const c of cenarios) {
     const { xml } = montarXml({ empresa, cliente: c.cliente, calculo: calc, pagamentos: c.pag.map((p) => ({ ...p, valor_cent: total })), duplicatas: dup, nota: { modelo: "55", serie: 1, numero: 10, ambiente: 2, infCpl: "Pedido 1." }, respTec: RESP });
     const assinado = await assinar(xml, "55");
     assert.match(assinado, /<Signature/);
+    // A assinatura confere com o certificado (chave lida em JavaScript, sem OpenSSL).
+    const sig = new SignedXml({ publicCert: abrirPfx(pfx, "1234").cert });
+    sig.loadSignature(assinado.match(/<Signature[\s\S]*<\/Signature>/)[0]);
+    assert.ok(sig.checkSignature(assinado), "assinatura digital inválida");
     const r = await validar(assinado);
     assert.ok(r.valid, JSON.stringify(r.errors?.map((e) => e.rawMessage ?? e.message), null, 1));
   });
@@ -100,4 +105,21 @@ test("leitura do .pfx: titular, CNPJ, senha errada e CNPJ de outra empresa", asy
   conferirCertificado(info, "11.222.333/0001-81");
   assert.throws(() => conferirCertificado(info, "99888777000155"), /outro CNPJ/);
   await assert.rejects(lerCertificado(pfx, "errada"), /senha incorreta/);
+  await assert.rejects(lerCertificado(Buffer.from("nao e um pfx"), "1234"), /pfx válido/);
+});
+
+test("lê .pfx antigo (3DES/RC2, comum em A1 ICP-Brasil) sem OpenSSL instalado", async (t) => {
+  if (!temOpenssl) return t.skip("OpenSSL indisponível para gerar o arquivo de teste");
+  const antigo = path.join(tmp, "antigo.pfx");
+  const args = ["pkcs12", "-export", "-inkey", path.join(tmp, "k.pem"), "-in", path.join(tmp, "c.pem"), "-out", antigo,
+    "-passout", "pass:1234", "-keypbe", "PBE-SHA1-3DES", "-certpbe", "PBE-SHA1-3DES", "-macalg", "sha1"];
+  try {
+    execFileSync("openssl", args, { stdio: "ignore" });
+  } catch {
+    return t.skip("Este OpenSSL não gera .pfx no formato antigo");
+  }
+  const pem = abrirPfx(fs.readFileSync(antigo), "1234");
+  assert.match(pem.key, /BEGIN RSA PRIVATE KEY|BEGIN PRIVATE KEY/);
+  assert.match(pem.cert, /BEGIN CERTIFICATE/);
+  assert.equal((await lerCertificado(fs.readFileSync(antigo), "1234")).cnpj, "11222333000181");
 });

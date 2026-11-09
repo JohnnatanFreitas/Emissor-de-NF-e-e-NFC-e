@@ -7,6 +7,7 @@ import { decifrar } from "../seguranca.js";
 import { preencherQrCodeNfce } from "./montar.js";
 import { validarXsd } from "./xsd.js";
 import { invalido } from "../util.js";
+import { abrirPfx } from "../certificado.js";
 
 export function criarSefaz({ config, empresa, modelo = "55" }) {
   if (config.modoSefaz === "simulado") return criarSefazSimulada({ empresa, modelo });
@@ -24,11 +25,12 @@ export function criarSefaz({ config, empresa, modelo = "55" }) {
       versao: "4.00",
       timeout: config.timeoutSegundos,
       CNPJ: empresa.cnpj.replace(/\D/g, ""), // autor dos eventos
-      xmllint: config.xmllint,
+      // A NF-e/NFC-e é validada em WASM (xsd.js); eventos e inutilização, pela SEFAZ.
+      // Sem xmllint nem OpenSSL instalados (ajuste em scripts/ajustar-sped-nfe.mjs).
+      xmllint: false,
       ...(nfce ? { CSC: csc, CSCid: empresa.csc_id } : {}),
-      ...(config.openssl ? { openssl: config.openssl } : {}),
     },
-    { pfx, senha }
+    { pfx, senha, pem: abrirPfx(pfx, senha) }
   );
 
   return {
