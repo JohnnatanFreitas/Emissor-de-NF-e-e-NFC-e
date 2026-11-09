@@ -4,6 +4,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
+import { spawnSync } from "node:child_process";
 import { servidorTeste, EMPRESA, CLIENTE_SP, ADMIN } from "./apoio.js";
 import { CSP_SITE, CSP_API, CSP_DANFE, CABECALHOS_COMUNS, HSTS } from "../src/cabecalhos.js";
 import { carregarConfig } from "../src/config.js";
@@ -104,6 +105,12 @@ test("cookie da sessão: HttpOnly, SameSite=Strict e Secure quando HTTPS", async
   } finally {
     await seguro.fechar();
   }
+});
+
+test("api/index.js carrega sem require() de ESM (o runtime da Vercel não aceita)", () => {
+  const r = spawnSync(process.execPath, ["--no-experimental-require-module", "--input-type=module", "-e",
+    "await import('./api/index.js'); console.log('ok')"], { encoding: "utf8", cwd: new URL("..", import.meta.url) });
+  assert.equal(r.stdout.trim(), "ok", r.stderr);
 });
 
 test("api/index.js (Vercel): atende /api pelo servidor Fastify", async () => {

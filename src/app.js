@@ -1,7 +1,6 @@
 // Monta o servidor Fastify: sessão por cookie, anti-CSRF, erros em { erro }, rotas e o front (web/dist).
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
-import fastifyStatic from "@fastify/static";
 import fs from "node:fs";
 import path from "node:path";
 import { lerToken, hashSenha } from "./seguranca.js";
@@ -91,8 +90,10 @@ export async function criarApp({ config, db, logger = false, fetchImpl }) {
 
   // Front-end compilado (web/dist). Qualquer rota fora de /api devolve o index.html (SPA).
   const web = path.resolve(config.webDir);
-  if (fs.existsSync(path.join(web, "index.html"))) {
+  if (!config.serverless && fs.existsSync(path.join(web, "index.html"))) {
     // wildcard: true lê o disco a cada pedido (um build novo do front vale sem reiniciar).
+    // Import só aqui: na Vercel a CDN serve o front e este módulo (que exige require de ESM) nem carrega.
+    const { default: fastifyStatic } = await import("@fastify/static");
     await app.register(fastifyStatic, { root: web, wildcard: true });
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith("/api/")) return reply.status(404).send({ erro: "Rota não encontrada." });
