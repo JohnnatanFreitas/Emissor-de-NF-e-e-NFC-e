@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "argus-emissor", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:simulado"], "port": 3077, "url": "http://127.0.0.1:3077" }
+  ]
+}

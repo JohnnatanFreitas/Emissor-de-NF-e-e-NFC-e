@@ -1,0 +1,28 @@
+{
+  "name": "argus-emissor-nfe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Argus Emissor: NF-e e NFC-e direto na SEFAZ, com perfis fiscais (ICMS, PIS/COFINS, IBS/CBS), pedidos, estoque e contas a receber",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "web:build": "npm --prefix web install && npm --prefix web run build",
+    "dev:simulado": "node --env-file=.env.dev src/server.js"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "@fastify/cookie": "11.1.5",
+    "@fastify/static": "10.1.10",
+    "fast-xml-parser": "4.5.3",
+    "fastify": "5.12.8",
+    "node-sped-nfe": "1.2.52",
+    "pg": "8.23.1",
+    "qrcode": "1.5.4",
+    "xmllint-wasm": "5.3.0"
+  }
+}

@@ -1,0 +1,11 @@
+node_modules
+web/node_modules
+web/dist
+dados
+.env
+*.pfx
+*.p12
+.git
+receipts
+review-receipts
+test

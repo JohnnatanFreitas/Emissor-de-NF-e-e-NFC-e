@@ -1,0 +1,58 @@
+services:
+  emissor-banco:
+    image: postgres:16-alpine
+    container_name: emissor-banco
+    environment:
+      POSTGRES_DB: emissor
+      POSTGRES_USER: emissor
+      POSTGRES_PASSWORD: ${DB_SENHA:?Preencha DB_SENHA no .env}
+    volumes:
+      - emissor-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emissor -d emissor"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  emissor-nfe:
+    build: .
+    container_name: emissor-nfe
+    depends_on:
+      emissor-banco:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://emissor:${DB_SENHA}@emissor-banco:5432/emissor
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      SEFAZ_MODO: ${SEFAZ_MODO:-sefaz}
+      XMLLINT: xmllint
+    # Só escuta no próprio computador. Em servidor, coloque um proxy com HTTPS na frente.
+    ports:
+      - "127.0.0.1:${HOST_PORT:-3000}:3000"
+    restart: unless-stopped
+
+  emissor-backup:
+    image: prodrigestivill/postgres-backup-local:16
+    container_name: emissor-backup
+    depends_on:
+      emissor-banco:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: emissor-banco
+      POSTGRES_DB: emissor
+      POSTGRES_USER: emissor
+      POSTGRES_PASSWORD: ${DB_SENHA}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 14
+      BACKUP_KEEP_WEEKS: 0
+      BACKUP_KEEP_MONTHS: 0
+    volumes:
+      - emissor-backups:/backups
+    restart: unless-stopped
+
+volumes:
+  emissor-pg:
+  emissor-backups:

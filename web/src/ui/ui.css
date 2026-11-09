@@ -1,0 +1,32 @@
+.titulo-pagina { margin-bottom: 16px; }
+.titulo-linha { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.titulo-linha h1 { margin: 0; }
+.titulo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.titulo-apoio { margin: 6px 0 0; font-size: var(--fs-barra); color: var(--texto-2); }
+.migalhas { font-size: var(--fs-corpo); color: var(--texto-2); margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+.migalha-sep { margin: 0 4px; }
+.quadro {
+  background: linear-gradient(180deg, var(--cartao), var(--cartao-2));
+  border: 1px solid var(--linha); border-radius: var(--raio-quadro); box-shadow: var(--sombra);
+  padding: 16px; min-width: 0;
+}
+.quadro-carregando { border-style: dashed; box-shadow: none; }
+.quadro-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.quadro-titulo { font-size: var(--fs-quadro); font-weight: 600; margin: 0; font-family: Inter, system-ui, sans-serif; }
+.quadro-sub { font-size: var(--fs-corpo); color: var(--texto-2); margin: 2px 0 12px; }
+.quadro-vazio { font-size: var(--fs-corpo); margin: 8px 0 0; }
+.indicador {
+  display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; min-width: 0;
+  background: linear-gradient(180deg, var(--cartao), var(--cartao-2));
+  border: 1px solid var(--linha); border-radius: var(--raio-quadro); box-shadow: var(--sombra);
+  color: var(--texto); text-decoration: none; transition: transform .2s, box-shadow .3s;
+}
+a.indicador:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px var(--acento), 0 8px 20px color-mix(in srgb, var(--acento) 28%, transparent); }
+.ind-rotulo { font-size: var(--fs-rotulo); color: var(--texto-2); }
+.ind-valor { font-size: var(--fs-indicador); font-weight: 600; line-height: 28px; font-variant-numeric: tabular-nums; }
+.ind-ok .ind-valor { color: var(--st-verde-texto); }
+.ind-atencao .ind-valor { color: var(--st-laranja-texto); }
+.ind-critico .ind-valor { color: var(--st-vermelho-texto); }
+.ind-cinza .ind-valor { color: var(--st-cinza-texto); }
+.abas-ui { overflow-x: auto; overflow-y: hidden; padding-block: 2px; scrollbar-width: thin; }
+@media (prefers-reduced-motion: reduce) { .indicador, a.indicador:hover { transition: none; transform: none; } }

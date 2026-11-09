@@ -1,0 +1,65 @@
+/* Argus Emissor: complementos ao tema.css do Argus Captura (mesmos tokens, claro e escuro). */
+
+/* faixa amarela: empresa em homologação (ambiente 2) */
+.faixa-homologacao {
+  display: flex; align-items: center; gap: 8px; padding: 8px 20px;
+  background: #FAB219; color: #2B1D00; font-size: var(--fs-corpo); border-bottom: 1px solid #C98A00;
+}
+.faixa-homologacao b { letter-spacing: 0.6px; }
+
+.formulario { display: flex; flex-direction: column; gap: 12px; }
+.formulario-estreito { max-width: 720px; }
+.grupo { border: 1px solid var(--linha); border-radius: var(--raio); padding: 10px 14px 14px; margin: 0; min-width: 0; }
+.grupo legend { padding: 0 6px; font-weight: 600; font-size: var(--fs-secao); }
+.grupo > .opcao, .grupo > .marcar { margin: 6px 0 10px; }
+.grade-campos .campo-largo { grid-column: span 2; }
+@media (max-width: 559.98px) { .grade-campos .campo-largo { grid-column: auto; } }
+.dica { font-size: 12px; }
+.espaco-acima { margin-top: 12px; }
+.acoes-coluna { display: flex; flex-direction: column; gap: 8px; align-items: stretch; margin-top: 12px; }
+.acoes-coluna .botao-texto { align-self: flex-start; }
+.lista-erros { margin: 12px 0 0; padding-left: 28px; }
+.aviso { margin: 12px 0 0; }
+.selo-st { white-space: nowrap; }
+.quadro-acoes a { font-size: var(--fs-corpo); }
+.painel .quadro { margin-bottom: 12px; }
+.painel-listas { margin-top: 12px; }
+
+/* pedido e venda balcão: itens à esquerda, resumo fixo à direita */
+.pedido-grade { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.pedido-principal { display: grid; gap: 16px; min-width: 0; }
+.pedido-lateral { position: sticky; top: calc(var(--altura-topo) + 12px); display: grid; gap: 12px; min-width: 0; }
+@media (max-width: 1099.98px) {
+  .pedido-grade { grid-template-columns: minmax(0, 1fr); }
+  .pedido-lateral { position: static; }
+}
+.pedido-principal h2, .resumo h2 { font-size: 16px; margin-top: 0; }
+.cliente-escolhido { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 0; }
+.tabela-itens td { vertical-align: middle; }
+.entrada-num { width: 110px; text-align: right; }
+.busca-combo { width: 100%; }
+.popover-busca { width: min(560px, calc(100vw - 32px)); }
+
+.resumo-linhas { margin: 0; display: grid; gap: 2px; }
+.resumo-linhas > div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 13px; }
+.resumo-linhas dt { color: var(--texto-2); }
+.resumo-linhas dd { margin: 0; }
+.resumo-linhas .resumo-base dt, .resumo-linhas .resumo-base dd { font-size: 12px; color: var(--texto-2); }
+.resumo-linhas .resumo-total {
+  border-top: 1px solid var(--linha); margin-top: 6px; padding-top: 8px; font-size: 16px; font-weight: 700;
+}
+.resumo-linhas .resumo-total dt { color: var(--texto); }
+.resumo-linhas.recalculando { opacity: 0.6; }
+
+.total-grande { display: flex; justify-content: space-between; align-items: baseline; font-size: 22px; margin: 0 0 12px; }
+.linha-pagamento { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.linha-pagamento select.entrada { flex: 1 1 140px; width: auto; }
+.linha-pagamento input.entrada { width: auto; }
+.novo-produto {
+  display: grid; grid-template-columns: 100px minmax(160px, 1fr) 64px 130px minmax(140px, 1fr); gap: 6px; min-width: 620px;
+}
+.escolha-empresas { margin-top: 12px; }
+.confirmacao textarea { resize: vertical; }
+.baixa { margin-top: 0; }
+.ok { color: var(--st-verde-texto); background: var(--st-verde-fundo); border-radius: 6px; padding: 8px 10px; margin: 0 0 12px; }
+.bloco .ok, .formulario .ok { margin: 0; }

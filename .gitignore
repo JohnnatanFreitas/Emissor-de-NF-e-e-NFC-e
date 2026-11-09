@@ -1,0 +1,13 @@
+node_modules/
+dados/
+.env
+*.pfx
+*.p12
+
+# registros gerados pelos plugins protect-mcp / review-agent-governance
+receipts/
+review-receipts/
+.env.dev
+
+# instaladores e arquivos locais
+*.exe
