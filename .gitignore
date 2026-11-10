@@ -11,3 +11,4 @@ review-receipts/
 
 # instaladores e arquivos locais
 *.exe
+*.lnk

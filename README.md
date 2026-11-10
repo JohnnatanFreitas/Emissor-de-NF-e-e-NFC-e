@@ -13,6 +13,9 @@ Emissão de **NF-e (55) e NFC-e (65) direto na SEFAZ**, sem API de terceiros, pa
 - Estoque com baixa automática, ajuste/inventário e **entrada pelo XML de compra** (custo médio com IPI, ST e frete;
   vínculo produto x fornecedor lembrado)
 - Contas a receber geradas pelas duplicatas (baixa e estorno)
+- **SPED Fiscal (EFD ICMS/IPI), perfis A e B**: notas emitidas + notas de entrada classificadas pela mercadoria
+  (revenda, industrialização, uso e consumo, ativo), com CFOP de entrada, crédito e apuração do ICMS (E110/E116),
+  ST (E200), DIFAL da EC 87 (E300) e IPI para indústria (E500). Prévia com erros e alertas antes de gerar
 - Login por usuário: `admin`, `equipe` (escritório), `vendedor` e `financeiro`
 
 O guia de instalação para o usuário está em **[COMO-INSTALAR-PAC-FATURAMENTO.md](COMO-INSTALAR-PAC-FATURAMENTO.md)**
@@ -33,7 +36,7 @@ do Node, numa pasta), então não precisa instalar banco.
 npm install
 npm run web:build          # compila o front (web/) em web/dist
 npm run dev:simulado       # usa .env.dev: SEFAZ simulada + PGlite, em http://127.0.0.1:3077
-npm test                   # 44 testes (PGlite em memória, SEFAZ simulada, XSD oficial)
+npm test                   # 53 testes (PGlite em memória, SEFAZ simulada, XSD oficial)
 ```
 
 Para o front com recarga automática: `npm --prefix web run dev` (Vite em 5173, com proxy de `/api` para a porta 3000).
@@ -87,6 +90,9 @@ test/                              testes (node:test)
 - Perfis fiscais padrão são ponto de partida: revise CST, alíquotas e CFOP de cada empresa.
 - A tabela de alíquota interna por UF (DIFAL) fica em `src/fiscal/perfis-padrao.js`; confira a legislação vigente.
 - Ainda não implementado: contingência (SVC/EPEC), devolução (finNFe 4), frete e transportadora.
+- SPED: ainda não entram CT-e de frete (Bloco D), inventário (Bloco H), produção (Bloco K), CIAP (Bloco G), ajustes
+  E111 (crédito do Simples, DIFAL de entrada) e NF-e de terceiros canceladas depois do lançamento. Confira cada arquivo
+  no PVA antes de transmitir.
 
 ## Segurança
 

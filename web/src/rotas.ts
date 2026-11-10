@@ -30,6 +30,7 @@ export const MENU: ItemMenu[] = [
       { rotulo: 'Ajuste / inventário', para: '/estoque/ajuste', ativo: sob('/estoque/ajuste') },
       { rotulo: 'Movimentos', para: '/estoque/movimentos', ativo: sob('/estoque/movimentos') },
       { rotulo: 'Entrada por XML', para: '/estoque/entrada-xml', ativo: sob('/estoque/entrada-xml') },
+      { rotulo: 'Classificar entradas', para: '/estoque/entradas', ativo: sob('/estoque/entradas') },
     ],
   },
   {
@@ -40,6 +41,7 @@ export const MENU: ItemMenu[] = [
   { rotulo: 'Notas fiscais', para: '/notas', prefixos: ['/notas'], icone: 'notas' },
   { rotulo: 'Venda balcão (NFC-e)', para: '/balcao', prefixos: ['/balcao'], icone: 'balcao', acoes: ['emitir'] },
   { rotulo: 'Contas a receber', para: '/receber', prefixos: ['/receber'], icone: 'receber', acoes: ['financeiro'] },
+  { rotulo: 'SPED Fiscal', para: '/sped', prefixos: ['/sped'], icone: 'sped', acoes: ['sped'] },
   {
     rotulo: 'Configurações', prefixos: ['/configuracoes'], icone: 'configuracoes',
     subs: [

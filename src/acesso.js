@@ -3,7 +3,7 @@ import { proibido, ErroHttp, naoEncontrado } from "./util.js";
 
 export const TODAS_ACOES = [
   "gerir_usuarios", "gerir_empresas", "liberar_producao", "editar_perfis", "editar_produtos", "editar_pessoas",
-  "pedidos", "emitir", "cancelar_nota", "estoque", "financeiro",
+  "pedidos", "emitir", "cancelar_nota", "estoque", "financeiro", "sped",
 ];
 
 const ACOES_POR_PAPEL = {

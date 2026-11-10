@@ -12,6 +12,8 @@ import { rotasCadastros } from "./rotas/cadastros.js";
 import { rotasVendas } from "./rotas/vendas.js";
 import { rotasEstoque } from "./rotas/estoque.js";
 import { rotasFinanceiro } from "./rotas/financeiro.js";
+import { rotasEntradas } from "./rotas/entradas.js";
+import { rotasSped } from "./rotas/sped.js";
 
 export const COOKIE = "argus_sessao";
 const ESCRITA = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -82,6 +84,8 @@ export async function criarApp({ config, db, logger = false, fetchImpl }) {
     await rotasVendas(api, deps);
     await rotasEstoque(api, deps);
     await rotasFinanceiro(api, deps);
+    await rotasEntradas(api, deps);
+    await rotasSped(api, deps);
   }, { prefix: "/api" });
 
   app.all("/api/*", async () => {

@@ -2,7 +2,7 @@
 
 export type Papel = 'admin' | 'equipe' | 'vendedor' | 'financeiro'
 export type Acao = 'gerir_usuarios' | 'gerir_empresas' | 'liberar_producao' | 'editar_perfis' | 'editar_produtos'
-  | 'editar_pessoas' | 'pedidos' | 'emitir' | 'cancelar_nota' | 'estoque' | 'financeiro'
+  | 'editar_pessoas' | 'pedidos' | 'emitir' | 'cancelar_nota' | 'estoque' | 'financeiro' | 'sped'
 
 export type Eu = {
   id: number; nome: string; email: string; papel: Papel
@@ -150,16 +150,97 @@ export type ItemLeitura = {
   valor_unitario_cent: number; valor_cent: number; ipi_cent: number; icms_st_cent: number; frete_cent: number
   custo_total_cent: number
   sugestao: { acao: 'vincular' | 'criar'; produto_id: number | null; fator: number }
+  /** classificação fiscal sugerida para o SPED (última do mesmo item/fornecedor, senão pela regra) */
+  classificacao?: Classificacao
 }
 export type LeituraXml = {
   ja_lancada: boolean; destinatario_confere?: boolean; chave: string; numero: number; serie: number; emitida_em: string; total_cent: number
   frete_cent: number
   fornecedor: { cnpj: string; nome: string; uf: string; pessoa_id: number | null }
+  /** AAAA-MM-DD */
+  data_entrada_sugerida?: string
   itens: ItemLeitura[]
 }
 export type ItemLancar = {
   indice: number; acao: 'vincular' | 'criar' | 'ignorar'; produto_id?: number; fator: number
   novo?: { codigo: string; descricao: string; unidade: string; preco_cent: number; perfil_id: number }
+  classificacao?: Classificacao
+}
+
+/* ---- Entradas para o SPED (classificação fiscal dos itens da nota de compra) ---- */
+export type Destino = 'revenda' | 'industrializacao' | 'uso_consumo' | 'ativo' | 'outros'
+export type Classificacao = { destino: Destino; cfop: string; cst_icms: string; credito_icms: boolean; credito_ipi: boolean }
+export type DestinoOpcao = { valor: Destino; rotulo: string; tipo_item: string; cfop_final: string; cfop_final_st: string }
+
+/** Destinos do contrato (o detalhe da entrada traz a lista do servidor; a Entrada por XML usa esta). */
+export const DESTINOS: DestinoOpcao[] = [
+  { valor: 'revenda', rotulo: 'Revenda', tipo_item: '00', cfop_final: '102', cfop_final_st: '403' },
+  { valor: 'industrializacao', rotulo: 'Industrialização (insumo)', tipo_item: '01', cfop_final: '101', cfop_final_st: '401' },
+  { valor: 'uso_consumo', rotulo: 'Uso e consumo', tipo_item: '07', cfop_final: '556', cfop_final_st: '407' },
+  { valor: 'ativo', rotulo: 'Ativo imobilizado', tipo_item: '08', cfop_final: '551', cfop_final_st: '406' },
+  { valor: 'outros', rotulo: 'Outras entradas', tipo_item: '99', cfop_final: '949', cfop_final_st: '949' },
+]
+
+export type EntradaResumo = {
+  id: number; chave: string; numero: number; emitida_em: string; total_cent: number; classificada: boolean
+  /** AAAA-MM-DD */
+  data_entrada: string
+  fornecedor_nome: string | null; fornecedor_cnpj: string | null; fornecedor_uf: string | null
+}
+export type ItemEntrada = {
+  num_item: number; codigo_fornecedor: string; descricao: string; ncm: string; cfop_emitente: string; cst_emitente: string
+  quantidade: number; unidade: string; valor_cent: number; bc_icms_cent: number; aliq_icms: number; icms_cent: number
+  icms_st_cent: number; ipi_cent: number; credito_simples_cent: number
+  produto: { id: number; codigo: string; descricao: string } | null
+  classificacao: Classificacao | null
+}
+export type EntradaDetalhe = {
+  id: number; chave: string; numero: number; serie: number; dt_emissao: string; data_entrada: string | null
+  classificada: boolean
+  fornecedor: { nome: string; cnpj: string; uf: string; simples: boolean }
+  total_cent: number
+  itens: ItemEntrada[]
+  destinos: DestinoOpcao[]
+}
+
+/* ---- SPED Fiscal (EFD ICMS/IPI) ---- */
+export type PerfilSped = 'A' | 'B'
+export type FinalidadeSped = '0' | '1'
+export type Contabilista = {
+  nome: string; cpf: string; crc: string; cnpj: string; cep: string; logradouro: string; numero: string
+  complemento: string; bairro: string; fone: string; email: string; cod_municipio: string
+}
+export type ConfigSped = {
+  perfil: PerfilSped
+  /** '0' industrial ou equiparado, '1' outros */
+  atividade: '0' | '1'
+  /** registro 0002, só industrial */
+  ind_classif: string
+  contabilista: Contabilista
+  cod_receita: string; cod_receita_st: string; cod_receita_difal: string
+  /** 1–28, no mês seguinte */
+  dia_vencimento: number
+  saldo_credor_inicial_cent: number
+  incluir_homologacao: boolean
+}
+export type ApuracaoSped = {
+  debitos_cent: number; creditos_cent: number; saldo_credor_anterior_cent: number; saldo_apurado_cent: number
+  deducoes_cent: number; icms_recolher_cent: number; saldo_credor_transportar_cent: number
+  st: { uf: string; retido_cent: number }[]
+  difal: { uf: string; difal_cent: number; fcp_cent: number }[]
+  ipi: { debitos_cent: number; creditos_cent: number; saldo_devedor_cent: number; saldo_credor_cent: number } | null
+}
+export type ResumoSped = { perfil: PerfilSped; saidas: number; entradas: number; participantes: number; itens: number; c170: number }
+export type PreviaSped = {
+  periodo: string; erros: string[]; alertas: string[]; saldo_anterior: { cent: number; origem: string }
+  linhas?: number; contagem?: Record<string, number>; apuracao?: ApuracaoSped; resumo?: ResumoSped
+}
+export type ArquivoSped = {
+  id: number; periodo: string; perfil: PerfilSped; finalidade: FinalidadeSped; linhas: number; apuracao: ApuracaoSped
+  gerado_em: string; usuario_nome: string | null
+}
+export type CorpoSped = {
+  periodo: string; perfil: PerfilSped; finalidade: FinalidadeSped; saldo_credor_anterior_cent?: number
 }
 
 export type StatusParcela = 'aberta' | 'recebida' | 'cancelada'

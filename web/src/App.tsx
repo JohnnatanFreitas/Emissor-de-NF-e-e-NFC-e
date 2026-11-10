@@ -6,6 +6,7 @@ import { Layout } from './layout/Layout'
 import { PaginaBalcao } from './paginas/Balcao'
 import { PaginaConfigEmpresa } from './paginas/ConfigEmpresa'
 import { PaginaEmpresaNova, PaginaEmpresas } from './paginas/Empresas'
+import { PaginaEntrada, PaginaEntradas } from './paginas/Entradas'
 import { PaginaEntradaXml } from './paginas/EntradaXml'
 import { PaginaAjuste, PaginaEstoque, PaginaMovimentos } from './paginas/Estoque'
 import { Exige, NaoEncontrada } from './paginas/Guardas'
@@ -16,6 +17,7 @@ import { PaginaPerfil, PaginaPerfis } from './paginas/Perfis'
 import { PaginaPessoa, PaginaPessoas } from './paginas/Pessoas'
 import { PaginaProduto, PaginaProdutos } from './paginas/Produtos'
 import { PaginaReceber } from './paginas/Receber'
+import { PaginaSped } from './paginas/Sped'
 import { PaginaMinhaSenha } from './paginas/TrocarSenha'
 import { PaginaUsuarios } from './paginas/Usuarios'
 
@@ -39,6 +41,8 @@ export function Rotas() {
         <Route path="estoque/ajuste" element={<Exige acoes={['estoque']}><PaginaAjuste /></Exige>} />
         <Route path="estoque/movimentos" element={<Exige acoes={['estoque']}><PaginaMovimentos /></Exige>} />
         <Route path="estoque/entrada-xml" element={<Exige acoes={['estoque']}><PaginaEntradaXml /></Exige>} />
+        <Route path="estoque/entradas" element={<Exige acoes={['estoque']}><PaginaEntradas /></Exige>} />
+        <Route path="estoque/entradas/:id" element={<Exige acoes={['estoque']}><PaginaEntrada /></Exige>} />
         <Route path="pessoas" element={<Exige acoes={['editar_pessoas', 'pedidos', 'financeiro']}><PaginaPessoas /></Exige>} />
         <Route path="pessoas/:id" element={<Exige acoes={['editar_pessoas']}><PaginaPessoa /></Exige>} />
         <Route path="pedidos" element={<Exige acoes={['pedidos']}><PaginaPedidos /></Exige>} />
@@ -47,6 +51,8 @@ export function Rotas() {
         <Route path="notas/:id" element={<PaginaNota />} />
         <Route path="balcao" element={<Exige acoes={['emitir']}><PaginaBalcao /></Exige>} />
         <Route path="receber" element={<Exige acoes={['financeiro']}><PaginaReceber /></Exige>} />
+        <Route path="sped" element={<Exige acoes={['sped']}><PaginaSped aba="gerar" /></Exige>} />
+        <Route path="sped/configuracao" element={<Exige acoes={['sped']}><PaginaSped aba="configuracao" /></Exige>} />
         <Route path="configuracoes" element={<Navigate to="/configuracoes/senha" replace />} />
         <Route path="configuracoes/empresa" element={<Exige acoes={['gerir_empresas']}><PaginaConfigEmpresa /></Exige>} />
         <Route path="configuracoes/perfis" element={<Exige acoes={['editar_perfis']}><PaginaPerfis /></Exige>} />

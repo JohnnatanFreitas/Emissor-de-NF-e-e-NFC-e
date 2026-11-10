@@ -254,3 +254,70 @@ type ItemLancar = { indice: number; acao: 'vincular'|'criar'|'ignorar'; produto_
 type Parcela = { id; nota_id; nota_numero; pedido_id; cliente_id; cliente_nome; parcela; numero_dup;
   vencimento; valor_cent; status: 'aberta'|'recebida'|'cancelada'; vencida: boolean; recebida_em; valor_recebido_cent; forma }
 ```
+
+## Entradas para o SPED (ação `estoque`)
+
+A classificação fiscal de cada item da nota de compra decide o que vai para o C170/C190 do SPED.
+
+| GET | `/api/empresas/:eid/entradas?de=AAAA-MM-DD&ate=AAAA-MM-DD&situacao=a_conferir` | → `EntradaResumo[]` (período pela data de entrada) |
+|---|---|---|
+| GET | `/api/empresas/:eid/entradas/:id` | → `EntradaDetalhe` (cria a classificação sugerida se a nota foi lançada antes do SPED) |
+| PUT | `/api/empresas/:eid/entradas/:id/classificacao` | `{ data_entrada, itens: [{ num_item, destino, cfop, cst_icms, credito_icms, credito_ipi }] }` → `EntradaDetalhe` (marca como conferida e lembra por fornecedor) |
+
+```ts
+type Destino = 'revenda'|'industrializacao'|'uso_consumo'|'ativo'|'outros'
+type Classificacao = { destino: Destino; cfop: string; cst_icms: string; credito_icms: boolean; credito_ipi: boolean }
+type EntradaResumo = { id; chave; numero; emitida_em; total_cent; classificada: boolean; data_entrada: 'AAAA-MM-DD';
+  fornecedor_nome; fornecedor_cnpj; fornecedor_uf }
+type EntradaDetalhe = { id; chave; numero; serie; dt_emissao; data_entrada; classificada;
+  fornecedor: { nome; cnpj; uf; simples: boolean }; total_cent;
+  itens: { num_item; codigo_fornecedor; descricao; ncm; cfop_emitente; cst_emitente; quantidade; unidade; valor_cent;
+    bc_icms_cent; aliq_icms; icms_cent; icms_st_cent; ipi_cent; credito_simples_cent;
+    produto: { id; codigo; descricao } | null; classificacao: Classificacao | null }[];
+  destinos: { valor: Destino; rotulo; tipo_item; cfop_final; cfop_final_st }[] }
+```
+
+- **CFOP de entrada**: o primeiro dígito vem do CFOP do fornecedor (5→1, 6→2, 7→3); os três últimos, do destino
+  (revenda 102 / com ST 403; industrialização 101 / 401; uso e consumo 556 / 407; ativo 551 / 406; outras 949).
+- **Crédito de ICMS**: só quando há ICMS destacado (o servidor ignora o pedido de crédito sem ICMS). Uso e consumo e ativo
+  vêm sem crédito por padrão.
+- **CST na entrada**: origem + CST do fornecedor; CSOSN do Simples vira 60 (com ST) ou 90.
+- `data_entrada` não pode ser anterior à emissão nem futura.
+
+**Na entrada por XML** (`/estoque/entrada-xml/ler`): cada item traz `classificacao` (sugerida, usando a última classificação
+desse item do mesmo fornecedor) e a resposta traz `data_entrada_sugerida`. No `/lancar`, envie `data_entrada` e, em cada
+item, `classificacao`. Itens com `acao: "ignorar"` não mexem no estoque mas **são escriturados** (ex.: uso e consumo).
+Sem `classificacao` em todos os itens, a nota é gravada com a sugerida e fica "a conferir" (`classificada: false`).
+
+## SPED Fiscal — EFD ICMS/IPI (ação `sped`: admin e equipe)
+
+| GET | `/api/empresas/:eid/sped/config` | → `ConfigSped` |
+|---|---|---|
+| PUT | `/api/empresas/:eid/sped/config` | `ConfigSped` → `ConfigSped` |
+| POST | `/api/empresas/:eid/sped/previa` | `{ periodo: 'AAAA-MM', perfil?: 'A'|'B', finalidade?: '0'|'1', saldo_credor_anterior_cent? }` → `Previa` |
+| POST | `/api/empresas/:eid/sped/gerar` | mesmo corpo → `ArquivoSped & { alertas, resumo }`; 422 `{ erro, erros[], alertas[] }` se houver erro |
+| GET | `/api/empresas/:eid/sped/arquivos` | → `ArquivoSped[]` (últimos 100) |
+| GET | `/api/empresas/:eid/sped/arquivos/:id/download` | arquivo .txt em ISO-8859-1 |
+
+```ts
+type ConfigSped = { perfil: 'A'|'B'; atividade: '0'|'1' /* 0 industrial */; ind_classif: string /* 0002, só industrial */;
+  contabilista: { nome; cpf; crc; cnpj; cep; logradouro; numero; complemento; bairro; fone; email; cod_municipio };
+  cod_receita: string /* E116 */; cod_receita_st: string /* E250 */; cod_receita_difal: string /* E316 */;
+  dia_vencimento: number /* 1–28, mês seguinte */; saldo_credor_inicial_cent: number; incluir_homologacao: boolean }
+type Apuracao = { debitos_cent; creditos_cent; saldo_credor_anterior_cent; saldo_apurado_cent; deducoes_cent;
+  icms_recolher_cent; saldo_credor_transportar_cent;
+  st: { uf; retido_cent }[]; difal: { uf; difal_cent; fcp_cent }[];
+  ipi: { debitos_cent; creditos_cent; saldo_devedor_cent; saldo_credor_cent } | null }
+type Previa = { periodo; erros: string[]; alertas: string[]; saldo_anterior: { cent; origem: string };
+  linhas?; contagem?: Record<string, number>; apuracao?: Apuracao;
+  resumo?: { perfil; saidas; entradas; participantes; itens; c170 } }   // linhas/apuracao só sem erro
+type ArquivoSped = { id; periodo; perfil; finalidade; linhas; apuracao: Apuracao; gerado_em; usuario_nome }
+```
+
+- **Perfil A**: C170 em todas as notas. **Perfil B**: C170 só nas entradas (saídas com C100 + C190).
+- Saídas: notas autorizadas (C100 00), canceladas (02) e denegadas (04) do período; numeração inutilizada vira um C100
+  (05) por número. Notas de homologação ficam fora, salvo `incluir_homologacao` (para testes).
+- Entradas: notas com `data_entrada` no período, com a classificação gravada.
+- Saldo credor anterior: o transportado pelo último arquivo do mês anterior, senão `saldo_credor_inicial_cent`.
+- Erros que bloqueiam: empresa do Simples Nacional, sem IE, contabilista incompleto, nota pendente no período, ICMS a
+  recolher sem código de receita, industrial sem `ind_classif`.

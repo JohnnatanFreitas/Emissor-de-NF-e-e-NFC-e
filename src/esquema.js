@@ -165,6 +165,12 @@ CREATE TABLE IF NOT EXISTS nota_eventos (
 
 ALTER TABLE notas ADD COLUMN IF NOT EXISTS enviando_desde timestamptz;
 
+-- ---- EFD ICMS/IPI (SPED Fiscal) ----
+-- Configuração do SPED por empresa: perfil, atividade, contabilista, código de receita, vencimento.
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS sped jsonb NOT NULL DEFAULT '{}';
+-- Tipo do item no registro 0200 (00 revenda, 01 matéria-prima, 07 uso e consumo, 08 ativo...).
+ALTER TABLE produtos ADD COLUMN IF NOT EXISTS tipo_item text NOT NULL DEFAULT '00';
+
 -- Tentativas de login recusadas (limite por e-mail e por IP, válido entre instâncias do servidor).
 CREATE TABLE IF NOT EXISTS tentativas_login (
   id bigserial PRIMARY KEY,
@@ -174,6 +180,23 @@ CREATE TABLE IF NOT EXISTS tentativas_login (
 );
 CREATE INDEX IF NOT EXISTS tentativas_login_email ON tentativas_login (email, criado_em);
 CREATE INDEX IF NOT EXISTS tentativas_login_ip ON tentativas_login (ip, criado_em);
+
+-- Arquivos da EFD ICMS/IPI gerados (o saldo credor de um mês alimenta o mês seguinte).
+CREATE TABLE IF NOT EXISTS sped_arquivos (
+  id serial PRIMARY KEY,
+  empresa_id int NOT NULL REFERENCES empresas(id),
+  periodo text NOT NULL,
+  perfil text NOT NULL CHECK (perfil IN ('A','B')),
+  finalidade text NOT NULL CHECK (finalidade IN ('0','1')),
+  linhas int NOT NULL,
+  apuracao jsonb NOT NULL,
+  contagem jsonb NOT NULL,
+  saldo_credor_transportar_cent bigint NOT NULL DEFAULT 0,
+  conteudo text NOT NULL,
+  usuario_id int REFERENCES usuarios(id),
+  gerado_em timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS sped_arquivos_periodo ON sped_arquivos (empresa_id, periodo, gerado_em DESC);
 
 -- Faixas de numeração inutilizadas na SEFAZ (números pulados que nunca viraram nota autorizada).
 CREATE TABLE IF NOT EXISTS inutilizacoes (
@@ -202,6 +225,37 @@ CREATE TABLE IF NOT EXISTS entradas_xml (
   xml text NOT NULL,
   criado_em timestamptz NOT NULL DEFAULT now(),
   UNIQUE (empresa_id, chave)
+);
+
+-- Data em que a mercadoria entrou (DT_E_S do C100) e se a nota já foi classificada para o SPED.
+ALTER TABLE entradas_xml ADD COLUMN IF NOT EXISTS data_entrada date;
+ALTER TABLE entradas_xml ADD COLUMN IF NOT EXISTS classificada boolean NOT NULL DEFAULT false;
+
+-- Classificação fiscal de cada item da nota de entrada: é o que vai para o C170/C190 do SPED.
+CREATE TABLE IF NOT EXISTS entrada_itens (
+  entrada_id int NOT NULL REFERENCES entradas_xml(id) ON DELETE CASCADE,
+  num_item int NOT NULL,
+  produto_id int REFERENCES produtos(id),
+  codigo_fornecedor text NOT NULL,
+  descricao text NOT NULL,
+  destino text NOT NULL CHECK (destino IN ('revenda','industrializacao','uso_consumo','ativo','outros')),
+  cfop text NOT NULL,
+  cst_icms text NOT NULL,
+  credito_icms boolean NOT NULL,
+  credito_ipi boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (entrada_id, num_item)
+);
+
+-- Última classificação usada para cada item de cada fornecedor (a próxima nota já vem classificada).
+CREATE TABLE IF NOT EXISTS classificacao_lembrada (
+  empresa_id int NOT NULL REFERENCES empresas(id),
+  fornecedor_cnpj text NOT NULL,
+  codigo_fornecedor text NOT NULL,
+  destino text NOT NULL,
+  cfop_final text NOT NULL,
+  credito_icms boolean NOT NULL,
+  credito_ipi boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (empresa_id, fornecedor_cnpj, codigo_fornecedor)
 );
 
 CREATE TABLE IF NOT EXISTS estoque_movimentos (

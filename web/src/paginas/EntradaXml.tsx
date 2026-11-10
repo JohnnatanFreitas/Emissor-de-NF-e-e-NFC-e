@@ -2,10 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, json, lerTexto, mensagemErro, rotaEmpresa } from '../api'
-import { brl, centavosParaTexto, chaveBR, cnpjBR, dataBR, numeroParaTexto, quantidade, textoParaCentavos,
+import { classificacaoPadrao, problemaDataEntrada, problemasClassificacao } from '../classificacao'
+import { CamposClassificacao } from '../componentes/CamposClassificacao'
+import { brl, centavosParaTexto, chaveBR, cnpjBR, dataBR, hojeISO, numeroParaTexto, quantidade, textoParaCentavos,
   textoParaNumero } from '../formato'
 import { ComEmpresa } from '../layout/Layout'
-import type { ItemLancar, ItemLeitura, LeituraXml } from '../tipos'
+import { type Classificacao, DESTINOS, type ItemLancar, type ItemLeitura, type LeituraXml } from '../tipos'
 import { Selo } from '../ui/Selo'
 import { TituloPagina } from '../ui/TituloPagina'
 import { usePerfis } from './Perfis'
@@ -24,10 +26,21 @@ function escolhaInicial(i: ItemLeitura): Escolha {
   }
 }
 
-/** Converte as escolhas da tela nos itens do `lancar`; devolve a lista de problemas se houver. */
-export function montarItens(itens: ItemLeitura[], escolhas: Record<number, Escolha>): { itens: ItemLancar[]; problemas: string[] } {
+/**
+ * Converte as escolhas da tela nos itens do `lancar`; devolve a lista de problemas se houver. Com `classifs`, cada item
+ * (inclusive os ignorados no estoque, que continuam escriturados no SPED) leva a sua classificação fiscal.
+ */
+export function montarItens(itens: ItemLeitura[], escolhas: Record<number, Escolha>,
+  classifs?: Record<number, Classificacao>): { itens: ItemLancar[]; problemas: string[] } {
   const problemas: string[] = []
-  const saida: ItemLancar[] = itens.map((i) => {
+  const estoque = montarEstoque(itens, escolhas, problemas)
+  if (!classifs) return { itens: estoque, problemas }
+  problemas.push(...problemasClassificacao(itens.map((i) => ({ rotulo: `Item ${i.indice}`, c: classifs[i.indice] }))))
+  return { itens: estoque.map((it) => ({ ...it, classificacao: classifs[it.indice] })), problemas }
+}
+
+function montarEstoque(itens: ItemLeitura[], escolhas: Record<number, Escolha>, problemas: string[]): ItemLancar[] {
+  return itens.map((i): ItemLancar => {
     const e = escolhas[i.indice]
     const fator = textoParaNumero(e.fator) ?? NaN
     const n = `Item ${i.indice}`
@@ -47,7 +60,6 @@ export function montarItens(itens: ItemLeitura[], escolhas: Record<number, Escol
         preco_cent: preco ?? 0, perfil_id: Number(e.perfil_id) },
     }
   })
-  return { itens: saida, problemas }
 }
 
 function Entrada({ eid }: { eid: number }) {
@@ -58,8 +70,10 @@ function Entrada({ eid }: { eid: number }) {
   const [nomeArquivo, setNomeArquivo] = useState('')
   const [leitura, setLeitura] = useState<LeituraXml | null>(null)
   const [escolhas, setEscolhas] = useState<Record<number, Escolha>>({})
+  const [classifs, setClassifs] = useState<Record<number, Classificacao>>({})
+  const [dataEntrada, setDataEntrada] = useState('')
   const [problemas, setProblemas] = useState<string[]>([])
-  const [resultado, setResultado] = useState<{ movimentos: number } | null>(null)
+  const [resultado, setResultado] = useState<{ movimentos: number; entrada_id: number; classificada: boolean } | null>(null)
 
   const ler = useMutation({
     mutationFn: (texto: string) => api<LeituraXml>(rotaEmpresa(eid, 'estoque/entrada-xml/ler'), json('POST', { xml: texto })),
@@ -67,15 +81,19 @@ function Entrada({ eid }: { eid: number }) {
     onSuccess: (l) => {
       setLeitura(l)
       setEscolhas(Object.fromEntries(l.itens.map((i) => [i.indice, escolhaInicial(i)])))
+      setClassifs(Object.fromEntries(l.itens.map((i) => [i.indice, i.classificacao ?? classificacaoPadrao()])))
+      setDataEntrada(l.data_entrada_sugerida ?? hojeISO())
     },
   })
   const lancar = useMutation({
-    mutationFn: (itens: ItemLancar[]) => api<{ entrada_id: number; movimentos: number; fornecedor_id: number }>(
-      rotaEmpresa(eid, 'estoque/entrada-xml/lancar'), json('POST', { xml, itens })),
+    mutationFn: (itens: ItemLancar[]) => api<{ entrada_id: number; movimentos: number; fornecedor_id: number; classificada?: boolean }>(
+      rotaEmpresa(eid, 'estoque/entrada-xml/lancar'), json('POST', { xml, itens, data_entrada: dataEntrada })),
     onSuccess: (r) => {
-      setResultado({ movimentos: r.movimentos })
+      setResultado({ movimentos: r.movimentos, entrada_id: r.entrada_id, classificada: r.classificada !== false })
       setLeitura(null)
-      for (const k of ['estoque', 'produtos', 'movimentos', 'pessoas', 'painel']) void cliente.invalidateQueries({ queryKey: [k, eid] })
+      for (const k of ['estoque', 'produtos', 'movimentos', 'pessoas', 'painel', 'entradas']) {
+        void cliente.invalidateQueries({ queryKey: [k, eid] })
+      }
     },
   })
 
@@ -92,7 +110,9 @@ function Entrada({ eid }: { eid: number }) {
 
   function confirmar() {
     if (!leitura) return
-    const r = montarItens(leitura.itens, escolhas)
+    const r = montarItens(leitura.itens, escolhas, classifs)
+    const pData = problemaDataEntrada(dataEntrada, leitura.emitida_em)
+    if (pData) r.problemas.unshift(pData)
     setProblemas(r.problemas)
     if (r.problemas.length === 0) lancar.mutate(r.itens)
   }
@@ -100,7 +120,7 @@ function Entrada({ eid }: { eid: number }) {
   return (
     <section className="entrada-xml">
       <TituloPagina titulo="Entrada por" destaque="XML" migalhas={[{ rotulo: 'Estoque', para: '/estoque' }, { rotulo: 'Entrada por XML' }]}
-        apoio="O custo médio é recalculado com IPI, ST e frete. Na próxima nota do mesmo fornecedor, o vínculo já vem sugerido." />
+        apoio="O custo médio é recalculado com IPI, ST e frete. Na próxima nota do mesmo fornecedor, o vínculo e a classificação fiscal já vêm sugeridos." />
       <div className="cartao formulario-estreito">
         <label className="zona-arquivos" style={{ display: 'block' }}>
           <span className="campo-rotulo-forte">XML da nota do fornecedor</span><br />
@@ -112,8 +132,10 @@ function Entrada({ eid }: { eid: number }) {
       </div>
 
       {resultado && (
-        <p className="ok espaco-acima" role="status">Entrada lançada: {resultado.movimentos} movimento(s) no estoque.{' '}
-          <Link to="/estoque/movimentos">Ver movimentos</Link></p>
+        <p className="ok espaco-acima" role="status">Entrada lançada: {resultado.movimentos} movimento(s) no estoque
+          {resultado.classificada ? ' e classificação fiscal conferida.' : '.'}{' '}
+          <Link to="/estoque/movimentos">Ver movimentos</Link>{' · '}
+          <Link to={`/estoque/entradas/${resultado.entrada_id}`}>Ver a classificação</Link></p>
       )}
 
       {leitura && (
@@ -134,17 +156,28 @@ function Entrada({ eid }: { eid: number }) {
               <div><dt>Frete</dt><dd className="mono">{brl(leitura.frete_cent)}</dd></div>
               <div><dt>Chave</dt><dd className="mono">{chaveBR(leitura.chave)}</dd></div>
             </dl>
+            <div className="grade-campos">
+              <div className="campo">
+                <label htmlFor="xml-data-entrada"><span>Data de entrada</span></label>
+                <input id="xml-data-entrada" type="date" className="entrada" value={dataEntrada} min={leitura.emitida_em.slice(0, 10)}
+                  max={hojeISO()} aria-describedby="xml-data-entrada-dica" onChange={(e) => setDataEntrada(e.target.value)} />
+                <small id="xml-data-entrada-dica" className="mudo dica">Decide o mês do SPED em que a nota é escriturada.</small>
+              </div>
+            </div>
           </section>
 
           <section className="bloco" aria-labelledby="t-itens-xml">
             <h2 id="t-itens-xml">Itens</h2>
-            <p className="mudo dica">Fator: quantas unidades suas vêm em 1 unidade do fornecedor (caixa com 12 = 12).</p>
+            <p className="mudo dica">Fator: quantas unidades suas vêm em 1 unidade do fornecedor (caixa com 12 = 12).
+              Classificação fiscal: o destino define o CFOP de entrada, o CST e o crédito levados ao SPED.</p>
+            <p className="aviso">Itens marcados como <b>Não lançar</b> ficam fora do estoque, mas continuam escriturados no SPED
+              (ex.: material de uso e consumo). Classifique também esses itens.</p>
             <div className="rolagem">
               <table className="tabela tabela-itens">
                 <thead>
                   <tr><th scope="col">Item do fornecedor</th><th scope="col" className="num">Qtd.</th>
                     <th scope="col" className="num">Custo total</th><th scope="col">O que fazer</th><th scope="col">Produto</th>
-                    <th scope="col" className="num">Fator</th></tr>
+                    <th scope="col" className="num">Fator</th><th scope="col">Classificação fiscal (SPED)</th></tr>
                 </thead>
                 <tbody>
                   {leitura.itens.map((i) => {
@@ -190,12 +223,19 @@ function Entrada({ eid }: { eid: number }) {
                               </select>
                             </div>
                           )}
-                          {e.acao === 'ignorar' && <span className="mudo">Fica fora do estoque</span>}
+                          {e.acao === 'ignorar' && <span className="mudo">Fica fora do estoque, mas é escriturado no SPED</span>}
                         </td>
                         <td className="num">
                           {e.acao !== 'ignorar' && (
                             <input className="entrada mono entrada-num" inputMode="decimal" aria-label={`Fator do item ${i.indice}`}
                               value={e.fator} onChange={(ev) => mudar(i.indice, 'fator', ev.target.value)} />
+                          )}
+                        </td>
+                        <td>
+                          {classifs[i.indice] && (
+                            <CamposClassificacao item={`item ${i.indice}`} valor={classifs[i.indice]} destinos={DESTINOS}
+                              comSt={i.icms_st_cent > 0} temIpi={i.ipi_cent > 0}
+                              mudar={(c) => setClassifs((a) => ({ ...a, [i.indice]: c }))} />
                           )}
                         </td>
                       </tr>

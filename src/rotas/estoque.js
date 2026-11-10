@@ -3,7 +3,9 @@ import { exigir, empresaDaRota } from "../acesso.js";
 import { movimentar } from "../servicos/estoque.js";
 import { lerXmlCompra } from "../servicos/entrada-xml.js";
 import { normalizarProduto } from "./cadastros.js";
-import { conflito, invalido, texto } from "../util.js";
+import { conflito, invalido, texto, hojeISO } from "../util.js";
+import { lerNfe } from "../sped/nfe-xml.js";
+import { sugestoes, salvarClassificacao } from "../servicos/classificar.js";
 
 export async function rotasEstoque(api, { db }) {
   api.get("/empresas/:eid/estoque", async (req) => {
@@ -66,7 +68,15 @@ export async function rotasEstoque(api, { db }) {
       }
       itens.push({ ...it, sugestao });
     }
-    return { nota, ja_lancada: !!ja, pessoa_id: pessoa?.id ?? null, itens };
+    // Classificação fiscal sugerida (SPED): destino, CFOP de entrada, CST e crédito.
+    const nfe = lerNfe(xml);
+    const prods = new Map();
+    for (const it of itens) {
+      if (it.sugestao.produto_id) prods.set(it.indice, await db.one("SELECT tipo_item FROM produtos WHERE id = $1", [it.sugestao.produto_id]));
+    }
+    const sug = await sugestoes(db, e, nfe, prods);
+    for (const it of itens) it.classificacao = sug.get(it.indice);
+    return { nota, nfe, ja_lancada: !!ja, pessoa_id: pessoa?.id ?? null, itens };
   }
 
   api.post("/empresas/:eid/estoque/entrada-xml/ler", async (req) => {
@@ -77,6 +87,7 @@ export async function rotasEstoque(api, { db }) {
       ja_lancada, chave: nota.chave, numero: nota.numero, serie: nota.serie, emitida_em: nota.emitida_em, total_cent: nota.total_cent,
       frete_cent: nota.frete_cent, fornecedor: { cnpj: nota.fornecedor.cnpj, nome: nota.fornecedor.nome, uf: nota.fornecedor.uf, pessoa_id },
       destinatario_confere: !nota.destinatario_cnpj || nota.destinatario_cnpj === e.cnpj,
+      data_entrada_sugerida: hojeISO(),
       itens,
     };
   });
@@ -84,7 +95,7 @@ export async function rotasEstoque(api, { db }) {
   api.post("/empresas/:eid/estoque/entrada-xml/lancar", async (req) => {
     exigir(req, "estoque");
     const e = await empresaDaRota(req, db);
-    const { nota, ja_lancada, pessoa_id } = await leitura(e, req.body?.xml);
+    const { nota, nfe, ja_lancada, pessoa_id, itens: lidos } = await leitura(e, req.body?.xml);
     if (ja_lancada) throw conflito("Esta nota de compra já foi lançada no estoque.");
     const escolhas = new Map((req.body?.itens ?? []).map((i) => [Number(i.indice), i]));
     // Valida os produtos novos antes de abrir a transação.
@@ -118,6 +129,7 @@ export async function rotasEstoque(api, { db }) {
         [e.id, nota.chave, fornecedorId, nota.numero, nota.emitida_em, nota.total_cent, String(req.body.xml)]
       );
       let movimentos = 0;
+      const produtoDoItem = new Map();
       for (const it of nota.itens) {
         const esc = escolhas.get(it.indice) ?? { acao: "ignorar" };
         if (esc.acao === "ignorar") continue;
@@ -132,6 +144,7 @@ export async function rotasEstoque(api, { db }) {
           const p = await q.one("SELECT id FROM produtos WHERE id = $1 AND empresa_id = $2", [produtoId, e.id]);
           if (!p) throw invalido(`Produto do item ${it.indice} não encontrado.`);
         }
+        produtoDoItem.set(it.indice, produtoId);
         const qtd = it.quantidade * fator;
         await movimentar(q, {
           empresa_id: e.id, produto_id: produtoId, tipo: "entrada_xml", quantidade: qtd,
@@ -146,7 +159,19 @@ export async function rotasEstoque(api, { db }) {
         );
         movimentos++;
       }
-      return { entrada_id: ent.id, movimentos, fornecedor_id: fornecedorId };
+      // Classificação para o SPED: a enviada pela tela ou, sem ela, a sugerida ("a conferir").
+      const enviadas = nota.itens.every((it) => escolhas.get(it.indice)?.classificacao);
+      const sugeridas = new Map(lidos.map((l) => [l.indice, l.classificacao]));
+      await salvarClassificacao(q, e, ent, nfe, {
+        data_entrada: req.body?.data_entrada || hojeISO(),
+        conferida: enviadas,
+        itens: nota.itens.map((it) => ({
+          num_item: it.indice,
+          produto_id: produtoDoItem.get(it.indice) ?? null,
+          ...(escolhas.get(it.indice)?.classificacao ?? sugeridas.get(it.indice)),
+        })),
+      });
+      return { entrada_id: ent.id, movimentos, fornecedor_id: fornecedorId, classificada: enviadas };
     });
   });
 }

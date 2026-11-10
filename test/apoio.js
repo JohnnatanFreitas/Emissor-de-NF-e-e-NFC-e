@@ -36,7 +36,7 @@ export async function servidorTeste({ fetchImpl, config: extra = {} } = {}) {
     try {
       json = r.json();
     } catch {}
-    return { status: r.statusCode, json, body: r.body, headers: r.headers };
+    return { status: r.statusCode, json, body: r.body, raw: r.rawPayload, headers: r.headers };
   }
 
   async function login(email = ADMIN.email, senha = ADMIN.senha) {
