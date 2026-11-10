@@ -7,6 +7,7 @@ import { Icone } from '../ui/Icone'
 import { Menu } from './Menu'
 import { Topo } from './Topo'
 import { useMedia } from './useMedia'
+import { Direitos } from './Direitos'
 
 const ID_MENU = 'menu-lateral'
 const CHAVE_MENU = 'argus-emissor.menu'
@@ -110,6 +111,7 @@ export function Layout() {
           <main id="conteudo" className="conteudo" tabIndex={-1}>
             <Outlet />
           </main>
+          <Direitos />
         </div>
       </div>
     </EmpresaProvider>

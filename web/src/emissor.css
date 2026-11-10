@@ -119,3 +119,10 @@
 .celula-leitura { color: var(--texto-2); white-space: nowrap; }
 .informativo dt, .informativo dd { color: var(--texto-2); }
 .catalogo-nfse { margin-top: 12px; }
+
+/* Rodapé de direitos: pequeno, discreto, no canto direito, colado ao fim da página. */
+.direitos { margin-top: auto; padding: 10px 20px 14px; text-align: right; }
+.direitos small { font-size: 11px; color: var(--texto-2); letter-spacing: .01em; }
+@media (max-width: 559.98px) { .direitos { padding: 8px 12px 12px; text-align: center; } }
+.tela-login { position: relative; padding-bottom: 44px; }
+.tela-login .direitos { position: absolute; right: 0; bottom: 0; padding: 10px 20px 14px; }

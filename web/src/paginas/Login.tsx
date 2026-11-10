@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, json, mensagemErro } from '../api'
 import { Logo } from '../marca/Logo'
 import { MarcaSecran } from '../marca/Secran'
+import { Direitos } from '../layout/Direitos'
 import type { Eu } from '../tipos'
 
 export function Login() {
@@ -59,6 +60,7 @@ export function Login() {
         </form>
       </main>
       <footer className="login-rodape"><MarcaSecran /></footer>
+      <Direitos />
     </div>
   )
 }
