@@ -2,6 +2,7 @@
 // Valores em centavos inteiros; alíquotas em %.
 import { aliquotaInterestadual, ALIQ_INTERNA_UF } from "./perfis-padrao.js";
 import { arred, soDigitos } from "../util.js";
+import { cfopDaOperacao } from "./operacoes.js";
 
 const CST_PIS_ALIQ = new Set(["01", "02"]);
 const CST_PIS_NT = new Set(["04", "05", "06", "07", "08", "09"]);
@@ -27,7 +28,7 @@ function escolherCfop(perfil, modelo, ctx) {
 
 const pct = (base, aliq) => arred((base * Number(aliq || 0)) / 100);
 
-export function calcularItem({ empresa, perfil, modelo, ctx, quantidade, valor_unitario_cent, desconto_cent = 0 }) {
+export function calcularItem({ empresa, perfil, modelo, ctx, quantidade, valor_unitario_cent, desconto_cent = 0, operacao = "venda" }) {
   const q = Number(quantidade);
   const vu = Math.round(Number(valor_unitario_cent));
   const valor = arred(q * vu);
@@ -117,7 +118,7 @@ export function calcularItem({ empresa, perfil, modelo, ctx, quantidade, valor_u
     valor_unitario_cent: vu,
     desconto_cent: desc,
     valor_cent: valor,
-    cfop: escolherCfop(perfil, modelo, ctx),
+    cfop: cfopDaOperacao(operacao, perfil, escolherCfop(perfil, modelo, ctx), ctx.interestadual),
     origem: String(perfil.origem ?? "0"),
     cst_icms: cst,
     bc_icms_cent: bcIcms,
@@ -167,7 +168,7 @@ const CAMPOS_TOTAL = [
  * @param {object} p
  * @param {Array} p.itens [{ produto, perfil, quantidade, valor_unitario_cent, desconto_cent }]
  */
-export function calcularDocumento({ empresa, cliente, modelo, itens }) {
+export function calcularDocumento({ empresa, cliente, modelo, itens, operacao = "venda" }) {
   const ctx = contextoOperacao({ empresa, cliente, modelo });
   const calculados = itens.map(({ produto, perfil, quantidade, valor_unitario_cent, desconto_cent }) => {
     if (!(Number(quantidade) > 0)) throw Object.assign(new Error(`Quantidade inválida no item ${produto.codigo}.`), { status: 422 });
@@ -180,7 +181,7 @@ export function calcularDocumento({ empresa, cliente, modelo, itens }) {
       cest: produto.cest || "",
       ean: produto.ean || "",
       unidade: produto.unidade,
-      ...calcularItem({ empresa, perfil, modelo, ctx, quantidade, valor_unitario_cent: vu, desconto_cent }),
+      ...calcularItem({ empresa, perfil, modelo, ctx, quantidade, valor_unitario_cent: vu, desconto_cent, operacao }),
     };
   });
   const totais = Object.fromEntries(CAMPOS_TOTAL.map(([t, i]) => [t, calculados.reduce((s, it) => s + it[i], 0)]));

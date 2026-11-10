@@ -37,10 +37,10 @@ export async function carregarCliente(q, empresaId, clienteId) {
   return c;
 }
 
-export async function calcular(q, empresa, { modelo = "55", cliente_id, itens }) {
+export async function calcular(q, empresa, { modelo = "55", cliente_id, itens, operacao = "venda" }) {
   const cliente = await carregarCliente(q, empresa.id, cliente_id);
   const carregados = await carregarItens(q, empresa.id, itens);
-  return { cliente, calculo: calcularDocumento({ empresa, cliente, modelo, itens: carregados }) };
+  return { cliente, calculo: calcularDocumento({ empresa, cliente, modelo, itens: carregados, operacao }) };
 }
 
 /** Versão enxuta do item calculado para devolver ao front (sem campos internos). */

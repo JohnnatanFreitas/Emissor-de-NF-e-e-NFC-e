@@ -1,4 +1,4 @@
-import type { StatusInutilizacao, StatusNota, StatusParcela, StatusPedido } from '../tipos'
+import type { StatusInutilizacao, StatusNfse, StatusNota, StatusParcela, StatusPedido } from '../tipos'
 
 export type Tom = 'verde' | 'laranja' | 'vermelho' | 'azul' | 'cinza'
 
@@ -31,7 +31,20 @@ export function SeloNota({ status, motivo }: { status: StatusNota; motivo?: stri
   return <Selo texto={s.texto} tom={s.tom} titulo={motivo ?? undefined} />
 }
 
-export const STATUS_PEDIDO: Record<StatusPedido, { texto: string; tom: Tom }> = {
+export const STATUS_NFSE: Record<StatusNfse, { texto: string; tom: Tom }> = {
+  autorizada: { texto: 'Autorizada', tom: 'verde' },
+  enviando: { texto: 'Enviando', tom: 'azul' },
+  pendente: { texto: 'Pendente', tom: 'laranja' },
+  rejeitada: { texto: 'Rejeitada', tom: 'vermelho' },
+  cancelada: { texto: 'Cancelada', tom: 'cinza' },
+}
+
+export function SeloNfse({ status, motivo }: { status: StatusNfse; motivo?: string | null }) {
+  const s = STATUS_NFSE[status] ?? { texto: status, tom: 'cinza' as Tom }
+  return <Selo texto={s.texto} tom={s.tom} titulo={motivo ?? undefined} />
+}
+
+export const STATUS_PEDIDO:Record<StatusPedido, { texto: string; tom: Tom }> = {
   aberto: { texto: 'Aberto', tom: 'azul' },
   faturado: { texto: 'Faturado', tom: 'verde' },
   cancelado: { texto: 'Cancelado', tom: 'cinza' },

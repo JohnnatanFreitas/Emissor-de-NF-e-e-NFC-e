@@ -40,6 +40,15 @@ export const MENU: ItemMenu[] = [
   { rotulo: 'Pedidos e orçamentos', para: '/pedidos', prefixos: ['/pedidos'], icone: 'pedidos', acoes: ['pedidos'] },
   { rotulo: 'Notas fiscais', para: '/notas', prefixos: ['/notas'], icone: 'notas' },
   { rotulo: 'Venda balcão (NFC-e)', para: '/balcao', prefixos: ['/balcao'], icone: 'balcao', acoes: ['emitir'] },
+  { rotulo: 'Emissão rápida', para: '/emissao-rapida', prefixos: ['/emissao-rapida'], icone: 'rapida', acoes: ['emitir'] },
+  {
+    rotulo: 'NFS-e (serviços)', prefixos: ['/nfse'], icone: 'servicos', acoes: ['emitir'],
+    subs: [
+      { rotulo: 'Notas de serviço', para: '/nfse', ativo: (c) => c === '/nfse' || c === '/nfse/' || /^\/nfse\/\d+/.test(c) },
+      { rotulo: 'Emitir NFS-e', para: '/nfse/nova', ativo: sob('/nfse/nova') },
+      { rotulo: 'Serviços', para: '/nfse/servicos', ativo: sob('/nfse/servicos') },
+    ],
+  },
   { rotulo: 'Contas a receber', para: '/receber', prefixos: ['/receber'], icone: 'receber', acoes: ['financeiro'] },
   { rotulo: 'SPED Fiscal', para: '/sped', prefixos: ['/sped'], icone: 'sped', acoes: ['sped'] },
   {

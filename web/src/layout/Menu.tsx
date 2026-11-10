@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import type { Acao } from '../tipos'
 import { Logo } from '../marca/Logo'
+import { MarcaSecran } from '../marca/Secran'
 import { itemAtivo, menuVisivel } from '../rotas'
 import { Icone } from '../ui/Icone'
 
@@ -49,6 +50,7 @@ export function Menu({ acoes, aberto, recolhido, id }: {
           })}
         </ul>
       </nav>
+      <MarcaSecran compacta={compacto} />
     </aside>
   )
 }

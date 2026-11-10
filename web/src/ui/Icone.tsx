@@ -17,6 +17,8 @@ export const ICONES = {
   abrir: 'M14 3h7v7M10 14 21 3M19 14v7H3V5h7',
   alerta: 'M12 3 2 21h20L12 3zM12 10v5M12 18h.01',
   busca: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5',
+  rapida: 'M13 2 4 14h7l-1 8 9-12h-7l1-8z',
+  servicos: 'M3 7h18v13H3zM8 7V4h8v3M3 12h18M10 12v2h4v-2',
 } as const
 
 export type NomeIcone = keyof typeof ICONES

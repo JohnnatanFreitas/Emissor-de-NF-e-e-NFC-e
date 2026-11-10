@@ -13,6 +13,11 @@ Emissão de **NF-e (55) e NFC-e (65) direto na SEFAZ**, sem API de terceiros, pa
 - Estoque com baixa automática, ajuste/inventário e **entrada pelo XML de compra** (custo médio com IPI, ST e frete;
   vínculo produto x fornecedor lembrado)
 - Contas a receber geradas pelas duplicatas (baixa e estorno)
+- **Emissão rápida**: escolhe o produto e um card de operação (venda, bonificação, transferência, outras saídas) e a nota
+  sai com CFOP, CST e alíquotas já preenchidos pelo perfil fiscal
+- **NFS-e no padrão nacional** (DPS, DANFSe, cancelamento) com ISS, retenções federais e IBS/CBS. Envio **simulado** por
+  padrão (`NFSE_MODO=simulado`); o envio real ao Sefin Nacional (`NFSE_MODO=nacional`) ainda precisa ser conferido
+  em produção restrita com um certificado
 - **SPED Fiscal (EFD ICMS/IPI), perfis A e B**: notas emitidas + notas de entrada classificadas pela mercadoria
   (revenda, industrialização, uso e consumo, ativo), com CFOP de entrada, crédito e apuração do ICMS (E110/E116),
   ST (E200), DIFAL da EC 87 (E300) e IPI para indústria (E500). Prévia com erros e alertas antes de gerar
@@ -36,7 +41,7 @@ do Node, numa pasta), então não precisa instalar banco.
 npm install
 npm run web:build          # compila o front (web/) em web/dist
 npm run dev:simulado       # usa .env.dev: SEFAZ simulada + PGlite, em http://127.0.0.1:3077
-npm test                   # 53 testes (PGlite em memória, SEFAZ simulada, XSD oficial)
+npm test                   # 62 testes (PGlite em memória, SEFAZ simulada, XSD oficial)
 ```
 
 Para o front com recarga automática: `npm --prefix web run dev` (Vite em 5173, com proxy de `/api` para a porta 3000).

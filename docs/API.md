@@ -321,3 +321,50 @@ type ArquivoSped = { id; periodo; perfil; finalidade; linhas; apuracao: Apuracao
 - Saldo credor anterior: o transportado pelo último arquivo do mês anterior, senão `saldo_credor_inicial_cent`.
 - Erros que bloqueiam: empresa do Simples Nacional, sem IE, contabilista incompleto, nota pendente no período, ICMS a
   recolher sem código de receita, industrial sem `ind_classif`.
+
+## Emissão simplificada (ação `emitir`)
+
+O usuário escolhe produtos já cadastrados e um **card de operação**; CFOP, CST e alíquotas vêm prontos do perfil fiscal
+do produto e da operação (use `POST /calculo` com `operacao` para a prévia).
+
+| GET | `/api/operacoes` | → `{ valor, rotulo, descricao, natureza, cobranca: boolean, modelos: ('55'|'65')[] }[]` |
+|---|---|---|
+| POST | `/api/empresas/:eid/calculo` | aceita também `operacao` (padrão `venda`) |
+| POST | `/api/empresas/:eid/emissao-rapida` | `{ operacao, modelo: '55'|'65', cliente_id? (NF-e), cpf?, nome? (NFC-e), itens: [{ produto_id, quantidade, valor_unitario_cent?, desconto_cent? }], pagamentos?: [{ tPag, valor_cent }], observacao? }` → `Nota` |
+
+- Operações: `venda` (CFOP do perfil; NF-e e NFC-e), `bonificacao` (x910), `transferencia` (x152, ou x151 para produção
+  própria) e `outras` (x949) — estas três só em NF-e, **sem cobrança** (pagamento 90, sem contas a receber). Todas baixam o estoque.
+- O primeiro dígito do CFOP é 5 (mesma UF) ou 6 (outra UF), pela UF do cliente.
+
+## NFS-e — padrão nacional
+
+Modo de envio pela variável `NFSE_MODO`: `simulado` (padrão: autoriza localmente, número e chave no formato nacional,
+DANFSe com "SIMULADA - SEM VALOR FISCAL") ou `nacional` (assina a DPS com o A1 e envia ao Sefin Nacional; ainda não conferido).
+O ambiente segue o da empresa (2 = produção restrita, 1 = produção).
+
+| GET | `/api/nfse/catalogo` | → serviços sugeridos `{ cod_trib_nac, item_lc116, descricao, nbs, aliq_iss }[]` |
+|---|---|---|
+| GET/PUT | `/api/empresas/:eid/nfse/config` | `{ mei: boolean, serie_dps }` → `{ mei, regime: 'simples'|'mei'|'normal', serie_dps, proximo_dps, modo, ambiente, im }` (PUT: `gerir_empresas`) |
+| GET | `/api/empresas/:eid/nfse/servicos` | → `Servico[]` |
+| POST/PUT | `/api/empresas/:eid/nfse/servicos[/:id]` | `{ cod_trib_nac (6 díg.), item_lc116, nbs (9 díg., opcional), descricao, aliq_iss (0–5), iss_retido, ativo }` (`editar_produtos`) |
+| POST | `/api/empresas/:eid/nfse/calculo` | `PedidoNfse` → `CalculoNfse` |
+| POST | `/api/empresas/:eid/nfse` | `PedidoNfse & { descricao (discriminação, 5–2000) }` → `Nfse` (`emitir`) |
+| GET | `/api/empresas/:eid/nfse?de=&ate=&status=` | → `Nfse[]` |
+| GET | `/api/empresas/:eid/nfse/:id` · `/xml` · `/danfse` | nota · XML (NFS-e ou DPS) · DANFSe HTML |
+| POST | `/api/empresas/:eid/nfse/:id/cancelar` | `{ motivo }` 15–255 caracteres (`cancelar_nota`) |
+
+```ts
+type PedidoNfse = { servico_id; tomador_id /* pessoas */; valor_servico_cent; deducoes_cent?; desconto_incond_cent?;
+  competencia?: 'AAAA-MM-DD'; iss_retido?: boolean; reter_irrf?: boolean; reter_csrf?: boolean; reter_inss?: boolean; aliq_inss? }
+type CalculoNfse = { valor_servico_cent; deducoes_cent; desconto_incond_cent; base_calculo_cent; aliq_iss; iss_cent; iss_retido;
+  irrf_cent; pis_cent; cofins_cent; csll_cent; inss_cent; cbs_cent; ibs_uf_cent; ibs_mun_cent; aliq_cbs; aliq_ibs_uf; aliq_ibs_mun;
+  retencoes_cent; liquido_cent; regras: { ano; fase: string } }
+type Nfse = { id; serie_dps; numero_dps; numero_nfse; chave /* 50 díg. */; modo: 'simulado'|'nacional'; ambiente: 1|2;
+  status: 'enviando'|'autorizada'|'rejeitada'|'cancelada'|'pendente'; tomador_id; tomador_nome; servico_id; competencia;
+  valor_cent; valores: CalculoNfse; descricao; servico: { cod_trib_nac; item_lc116; nbs; descricao };
+  mensagem; motivo_cancelamento; emitida_em; cancelada_em }
+```
+
+Regras (portadas do sistema-nfse): retenções federais só com prestador fora do Simples/MEI e tomador PJ — IRRF 1,5%
+(dispensado abaixo de R$ 10,00), PIS 0,65%, COFINS 3% (até 2026), CSLL 1%; INSS opcional. IBS/CBS 2026 informativos:
+CBS 0,9%, IBS 0,1% estadual e 0% municipal; não destacados para Simples/MEI. MEI não tem alíquota de ISS na DPS.

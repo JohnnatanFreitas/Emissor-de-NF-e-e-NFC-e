@@ -251,6 +251,50 @@ export type Parcela = {
   forma: string | null
 }
 
+/* ---- Emissão simplificada (cards de operação) ---- */
+export type ValorOperacao = 'venda' | 'bonificacao' | 'transferencia' | 'outras'
+export type Operacao = {
+  valor: ValorOperacao | string; rotulo: string; descricao: string; natureza: string; cobranca: boolean; modelos: Modelo[]
+}
+export type ItemEmissao = { produto_id: number; quantidade: number; valor_unitario_cent?: number; desconto_cent?: number }
+export type CorpoEmissaoRapida = {
+  operacao: string; modelo: Modelo; cliente_id?: number; cpf?: string; nome?: string; itens: ItemEmissao[]
+  pagamentos?: Pagamento[]; observacao?: string
+}
+
+/* ---- NFS-e (padrão nacional) ---- */
+export type ItemCatalogoNfse = { cod_trib_nac: string; item_lc116: string; descricao: string; nbs: string; aliq_iss: number }
+export type ServicoEntrada = {
+  cod_trib_nac: string; item_lc116: string; nbs?: string; descricao: string; aliq_iss: number; iss_retido: boolean; ativo: boolean
+}
+/** `aliq_iss` pode chegar como texto (numeric do Postgres): use Number() ao ler. */
+export type Servico = Omit<ServicoEntrada, 'aliq_iss' | 'nbs'> & {
+  id: number; empresa_id?: number; nbs: string | null; aliq_iss: number | string
+}
+export type RegimeNfse = 'simples' | 'mei' | 'normal'
+export type ConfigNfse = {
+  mei: boolean; regime: RegimeNfse; serie_dps: number; proximo_dps: number; modo: 'simulado' | 'nacional'; ambiente: Ambiente
+  im: string | null
+}
+export type PedidoNfse = {
+  servico_id: number; tomador_id: number; valor_servico_cent: number; deducoes_cent?: number; desconto_incond_cent?: number
+  competencia?: string; iss_retido?: boolean; reter_irrf?: boolean; reter_csrf?: boolean; reter_inss?: boolean; aliq_inss?: number
+}
+export type CalculoNfse = {
+  valor_servico_cent: number; deducoes_cent: number; desconto_incond_cent: number; base_calculo_cent: number; aliq_iss: number
+  iss_cent: number; iss_retido: boolean; irrf_cent: number; pis_cent: number; cofins_cent: number; csll_cent: number
+  inss_cent: number; cbs_cent: number; ibs_uf_cent: number; ibs_mun_cent: number; aliq_cbs: number; aliq_ibs_uf: number
+  aliq_ibs_mun: number; retencoes_cent: number; liquido_cent: number; regras: { ano: number; fase: string }
+}
+export type StatusNfse = 'enviando' | 'autorizada' | 'rejeitada' | 'cancelada' | 'pendente'
+export type Nfse = {
+  id: number; serie_dps: number; numero_dps: number; numero_nfse: number | string | null; chave: string | null
+  modo: 'simulado' | 'nacional'; ambiente: Ambiente; status: StatusNfse; tomador_id: number; tomador_nome: string
+  servico_id: number; competencia: string; valor_cent: number; valores: CalculoNfse; descricao: string
+  servico: { cod_trib_nac: string; item_lc116: string; nbs: string | null; descricao: string } | null
+  mensagem: string | null; motivo_cancelamento: string | null; emitida_em: string; cancelada_em: string | null
+}
+
 /** Formas de pagamento (tPag) do contrato. */
 export const FORMAS_PAGAMENTO: { valor: string; rotulo: string }[] = [
   { valor: '01', rotulo: 'Dinheiro' },

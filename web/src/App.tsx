@@ -5,12 +5,14 @@ import { criarQueryClient } from './api'
 import { Layout } from './layout/Layout'
 import { PaginaBalcao } from './paginas/Balcao'
 import { PaginaConfigEmpresa } from './paginas/ConfigEmpresa'
+import { PaginaEmissaoRapida } from './paginas/EmissaoRapida'
 import { PaginaEmpresaNova, PaginaEmpresas } from './paginas/Empresas'
 import { PaginaEntrada, PaginaEntradas } from './paginas/Entradas'
 import { PaginaEntradaXml } from './paginas/EntradaXml'
 import { PaginaAjuste, PaginaEstoque, PaginaMovimentos } from './paginas/Estoque'
 import { Exige, NaoEncontrada } from './paginas/Guardas'
 import { Login } from './paginas/Login'
+import { PaginaNfse, PaginaNfseLista, PaginaNfseNova, PaginaNfseServicos } from './paginas/Nfse'
 import { PaginaNota, PaginaNotas } from './paginas/Notas'
 import { PaginaPedido, PaginaPedidos } from './paginas/Pedidos'
 import { PaginaPerfil, PaginaPerfis } from './paginas/Perfis'
@@ -50,6 +52,11 @@ export function Rotas() {
         <Route path="notas" element={<PaginaNotas />} />
         <Route path="notas/:id" element={<PaginaNota />} />
         <Route path="balcao" element={<Exige acoes={['emitir']}><PaginaBalcao /></Exige>} />
+        <Route path="emissao-rapida" element={<Exige acoes={['emitir']}><PaginaEmissaoRapida /></Exige>} />
+        <Route path="nfse" element={<Exige acoes={['emitir']}><PaginaNfseLista /></Exige>} />
+        <Route path="nfse/nova" element={<Exige acoes={['emitir']}><PaginaNfseNova /></Exige>} />
+        <Route path="nfse/servicos" element={<Exige acoes={['emitir']}><PaginaNfseServicos /></Exige>} />
+        <Route path="nfse/:id" element={<Exige acoes={['emitir']}><PaginaNfse /></Exige>} />
         <Route path="receber" element={<Exige acoes={['financeiro']}><PaginaReceber /></Exige>} />
         <Route path="sped" element={<Exige acoes={['sped']}><PaginaSped aba="gerar" /></Exige>} />
         <Route path="sped/configuracao" element={<Exige acoes={['sped']}><PaginaSped aba="configuracao" /></Exige>} />

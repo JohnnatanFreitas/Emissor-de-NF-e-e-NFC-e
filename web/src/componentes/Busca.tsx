@@ -106,13 +106,15 @@ export function BuscaProduto({ eid, aoEscolher, rotulo = 'Adicionar produto', en
 }
 
 /** Busca de cliente (tipo cliente) por nome ou CPF/CNPJ. */
-export function BuscaCliente({ eid, aoEscolher }: { eid: number; aoEscolher: (p: Pessoa) => void }) {
+export function BuscaCliente({ eid, aoEscolher, rotulo = 'Buscar cliente' }: {
+  eid: number; aoEscolher: (p: Pessoa) => void; rotulo?: string
+}) {
   const [texto, setTexto] = useState('')
   const termo = useAdiado(texto.trim(), 250)
   const q = usePessoas(eid, 'cliente', termo)
   const itens = termo ? (q.data ?? []).filter((p) => p.ativo).slice(0, 12) : []
   return (
-    <Combobox rotulo="Buscar cliente" placeholder="Nome ou CPF/CNPJ do cliente" texto={texto} setTexto={setTexto}
+    <Combobox rotulo={rotulo} placeholder="Nome ou CPF/CNPJ do cliente" texto={texto} setTexto={setTexto}
       itens={itens} carregando={q.isFetching} erro={q.isError ? q.error.message : undefined} chave={(p) => p.id}
       aoEscolher={(p) => { aoEscolher(p); setTexto('') }}
       conteudo={(p) => (

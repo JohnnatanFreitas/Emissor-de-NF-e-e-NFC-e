@@ -8,6 +8,7 @@ import { carregarCliente, carregarItens, itemPublico } from "./carregar.js";
 import { calcularDocumento } from "../fiscal/calculo.js";
 import { movimentar } from "./estoque.js";
 import { conflito, invalido, soDigitos, validarCPF, validarCNPJ, texto, ErroHttp } from "../util.js";
+import { operacaoDe } from "../fiscal/operacoes.js";
 
 const fabricaPadrao = (args) => criarSefaz(args);
 
@@ -29,13 +30,18 @@ async function prepararDocumento(q, empresa, modelo, entrada) {
     destinatario = cliente.nome || doc;
   }
   const itens = await carregarItens(q, empresa.id, entrada.itens);
-  const calculo = calcularDocumento({ empresa, cliente: modelo === "65" ? null : cliente, modelo, itens });
+  const operacao = entrada.operacao ?? "venda";
+  const op = operacaoDe(operacao);
+  if (!op.modelos.includes(modelo)) throw invalido(`A operação "${op.rotulo}" não pode ser emitida em ${modelo === "65" ? "NFC-e" : "NF-e"}.`);
+  const calculo = calcularDocumento({ empresa, cliente: modelo === "65" ? null : cliente, modelo, itens, operacao });
   const total = calculo.totais.total_cent;
-  const pagamentos = (entrada.pagamentos?.length ? entrada.pagamentos : [{ tPag: "01", valor_cent: total }]).map((p) => ({
+  // Operação sem cobrança (bonificação, transferência...): forma de pagamento 90 "sem pagamento".
+  const pagPadrao = op.cobranca ? [{ tPag: "01", valor_cent: total }] : [{ tPag: "90", valor_cent: 0 }];
+  const pagamentos = (op.cobranca && entrada.pagamentos?.length ? entrada.pagamentos : pagPadrao).map((p) => ({
     tPag: String(p.tPag).padStart(2, "0"),
     valor_cent: Math.round(Number(p.valor_cent ?? total)),
   }));
-  const duplicatas = modelo === "55" ? entrada.duplicatas ?? [] : [];
+  const duplicatas = modelo === "55" && op.cobranca ? entrada.duplicatas ?? [] : [];
   if (duplicatas.length) {
     const soma = duplicatas.reduce((s, d) => s + d.valor_cent, 0);
     if (soma !== total) {
@@ -46,7 +52,7 @@ async function prepararDocumento(q, empresa, modelo, entrada) {
     }
     if (pagamentos.length === 1) pagamentos[0].valor_cent = total;
   }
-  return { cliente, destinatario, calculo, pagamentos, duplicatas };
+  return { cliente, destinatario, calculo, pagamentos, duplicatas, natureza: op.natureza };
 }
 
 /** Monta, assina e valida. Lança 422 se o leiaute não passar (nada é enviado). */
@@ -87,7 +93,7 @@ export async function emitirNota({ db, config, empresaId, modelo, entrada, pedid
     const doc = await prepararDocumento(q, empresa, modelo, entrada);
     const serie = modelo === "65" ? empresa.serie_nfce : empresa.serie_nfe;
     const numero = modelo === "65" ? empresa.proximo_nfce : empresa.proximo_nfe;
-    const natureza = "VENDA";
+    const natureza = doc.natureza;
     const { xml, chave } = await montarAssinarValidar({ sefaz, empresa, doc, modelo, serie, numero, natureza, config, infCpl: entrada.infCpl });
     const n = await q.one(
       `INSERT INTO notas (empresa_id, modelo, serie, numero, chave, status, ambiente, cliente_id, destinatario, pedido_id, natureza,

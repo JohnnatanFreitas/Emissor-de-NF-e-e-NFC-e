@@ -85,3 +85,37 @@
 .apuracao-sped { max-width: 520px; }
 .sem-borda { border: 0; padding: 0; margin: 0; min-width: 0; }
 .titulo-lista { margin: 0 0 4px; }
+
+/* assinatura Secran Group: a logo tem fundo branco, então mora num bloco claro arredondado (igual nos dois temas) */
+.marca-secran {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: #FFFFFF; color: #2B3550; border-radius: 12px; padding: 10px 12px 8px;
+  box-shadow: 0 1px 0 #FFFFFF14, 0 0 0 1px #0712281A;
+}
+.marca-secran img { display: block; height: auto; }
+.marca-secran-texto { font-size: 11px; font-weight: 600; letter-spacing: 0.2px; text-align: center; line-height: 1.3; }
+.marca-secran.compacta { padding: 6px; border-radius: 10px; }
+.lateral { display: flex; flex-direction: column; }
+.lateral > nav { flex: none; }
+.lateral > .marca-secran { margin: auto 16px 16px; flex: none; }
+.lateral > .marca-secran.compacta { margin: auto 10px 12px; }
+.tela-login { align-content: center; gap: 20px; }
+.login-rodape .marca-secran { padding: 12px 16px 10px; }
+
+/* faixa da NFS-e: emissão simulada ou produção restrita */
+.faixa-nfse {
+  display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; margin: 0 0 12px; border-radius: var(--raio);
+  background: var(--st-laranja-fundo); color: var(--st-laranja-texto); font-size: 13px;
+}
+.faixa-nfse svg { flex: none; margin-top: 2px; }
+
+/* emissão rápida: cards de operação e de modelo */
+.cartoes-operacao { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 0; }
+.cartoes-modelo { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 0; }
+.cartao-opcao.desabilitada { opacity: 0.5; cursor: not-allowed; }
+.cartao-opcao:focus-within { box-shadow: inset 0 0 0 2px var(--foco); }
+.cartao-opcao .selo { margin-top: 6px; }
+.cartao-opcao-texto { display: flex; flex-direction: column; min-width: 0; }
+.celula-leitura { color: var(--texto-2); white-space: nowrap; }
+.informativo dt, .informativo dd { color: var(--texto-2); }
+.catalogo-nfse { margin-top: 12px; }

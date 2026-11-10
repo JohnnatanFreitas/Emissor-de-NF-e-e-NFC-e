@@ -181,6 +181,53 @@ CREATE TABLE IF NOT EXISTS tentativas_login (
 CREATE INDEX IF NOT EXISTS tentativas_login_email ON tentativas_login (email, criado_em);
 CREATE INDEX IF NOT EXISTS tentativas_login_ip ON tentativas_login (ip, criado_em);
 
+-- ---- NFS-e (padrão nacional) ----
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS nfse jsonb NOT NULL DEFAULT '{}';
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS serie_dps int NOT NULL DEFAULT 1;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS proximo_dps int NOT NULL DEFAULT 1;
+ALTER TABLE empresas ADD COLUMN IF NOT EXISTS proximo_nfse_simulada int NOT NULL DEFAULT 1;
+
+-- Serviços que a empresa presta (código de tributação nacional, item da LC 116, NBS e alíquota do ISS).
+CREATE TABLE IF NOT EXISTS nfse_servicos (
+  id serial PRIMARY KEY,
+  empresa_id int NOT NULL REFERENCES empresas(id),
+  cod_trib_nac text NOT NULL,
+  item_lc116 text NOT NULL DEFAULT '',
+  nbs text NOT NULL DEFAULT '',
+  descricao text NOT NULL,
+  aliq_iss numeric(7,4) NOT NULL DEFAULT 0,
+  iss_retido boolean NOT NULL DEFAULT false,
+  ativo boolean NOT NULL DEFAULT true,
+  UNIQUE (empresa_id, cod_trib_nac, descricao)
+);
+
+CREATE TABLE IF NOT EXISTS nfse (
+  id serial PRIMARY KEY,
+  empresa_id int NOT NULL REFERENCES empresas(id),
+  serie_dps int NOT NULL,
+  numero_dps int NOT NULL,
+  numero_nfse text,
+  chave text,
+  modo text NOT NULL CHECK (modo IN ('simulado','nacional')),
+  ambiente int NOT NULL,
+  status text NOT NULL CHECK (status IN ('enviando','autorizada','rejeitada','cancelada','pendente')),
+  tomador_id int REFERENCES pessoas(id),
+  tomador_nome text NOT NULL DEFAULT '',
+  servico_id int REFERENCES nfse_servicos(id),
+  competencia date NOT NULL,
+  valor_cent bigint NOT NULL DEFAULT 0,
+  valores jsonb NOT NULL DEFAULT '{}',
+  dados jsonb NOT NULL DEFAULT '{}',
+  xml_dps text,
+  xml_nfse text,
+  mensagem text,
+  motivo_cancelamento text,
+  usuario_id int REFERENCES usuarios(id),
+  emitida_em timestamptz NOT NULL DEFAULT now(),
+  cancelada_em timestamptz,
+  UNIQUE (empresa_id, serie_dps, numero_dps)
+);
+
 -- Arquivos da EFD ICMS/IPI gerados (o saldo credor de um mês alimenta o mês seguinte).
 CREATE TABLE IF NOT EXISTS sped_arquivos (
   id serial PRIMARY KEY,

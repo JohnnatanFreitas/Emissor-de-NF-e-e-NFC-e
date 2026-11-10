@@ -201,7 +201,7 @@ function ListaInutilizacoes({ eid }: { eid: number }) {
   )
 }
 
-function AcaoTexto({ titulo, rotulo, min, max, placeholder, enviar, pendente, fechar }: {
+export function AcaoTexto({ titulo, rotulo, min, max, placeholder, enviar, pendente, fechar }: {
   titulo: string; rotulo: string; min: number; max: number; placeholder: string; enviar: (t: string) => void
   pendente: boolean; fechar: () => void
 }) {

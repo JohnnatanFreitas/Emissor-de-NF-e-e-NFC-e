@@ -6,6 +6,7 @@ import { resumoNota, notaCompleta } from "../servicos/notas-vista.js";
 import { inutilizarNumeracao, inutilizacaoPublica } from "../servicos/inutilizacao.js";
 import { gerarDanfe } from "../nfe/danfe.js";
 import { CSP_DANFE } from "../cabecalhos.js";
+import { operacaoDe, listaOperacoes } from "../fiscal/operacoes.js";
 import { liberarEnviosParados } from "../db.js";
 import { conflito, invalido, naoEncontrado, texto, hojeISO, somarDias } from "../util.js";
 
@@ -192,6 +193,33 @@ export async function rotasVendas(api, { db, config }) {
     };
     if (!entrada.pagamentos.length) throw invalido("Informe a forma de pagamento.");
     const nota = await emitirNota({ db, config, empresaId: e.id, modelo: "65", entrada, usuarioId: req.usuario.id });
+    return notaCompleta(nota);
+  });
+
+  // ---- Emissão simplificada: produto + tipo de operação, CFOP/CST/alíquota pelo perfil ----
+  api.get("/operacoes", async () => listaOperacoes());
+
+  api.post("/empresas/:eid/emissao-rapida", async (req) => {
+    exigir(req, "emitir");
+    const e = await empresaDaRota(req, db);
+    const d = req.body ?? {};
+    const op = operacaoDe(d.operacao);
+    const modelo = d.modelo === "65" ? "65" : "55";
+    if (!op.modelos.includes(modelo)) throw invalido(`A operação "${op.rotulo}" não pode ser emitida em ${modelo === "65" ? "NFC-e" : "NF-e"}.`);
+    if (!Array.isArray(d.itens) || !d.itens.length) throw invalido("Escolha pelo menos um produto.");
+    const entrada = {
+      operacao: d.operacao ?? "venda",
+      cliente_id: modelo === "55" ? Number(d.cliente_id) : undefined,
+      consumidor: modelo === "65" && d.cpf ? { cpf: d.cpf, nome: d.nome } : null,
+      itens: d.itens.map((i) => ({
+        produto_id: Number(i.produto_id), quantidade: Number(i.quantidade),
+        ...(i.valor_unitario_cent != null ? { valor_unitario_cent: Math.round(Number(i.valor_unitario_cent)) } : {}),
+        ...(i.desconto_cent ? { desconto_cent: Math.round(Number(i.desconto_cent)) } : {}),
+      })),
+      pagamentos: op.cobranca ? (d.pagamentos ?? []).map((p) => ({ tPag: String(p.tPag).padStart(2, "0"), valor_cent: Math.round(Number(p.valor_cent)) })) : [],
+      infCpl: texto(d.observacao, 2000) || undefined,
+    };
+    const nota = await emitirNota({ db, config, empresaId: e.id, modelo, entrada, usuarioId: req.usuario.id });
     return notaCompleta(nota);
   });
 

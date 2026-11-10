@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, json, mensagemErro } from '../api'
 import { Logo } from '../marca/Logo'
+import { MarcaSecran } from '../marca/Secran'
 import type { Eu } from '../tipos'
 
 export function Login() {
@@ -57,6 +58,7 @@ export function Login() {
           </button>
         </form>
       </main>
+      <footer className="login-rodape"><MarcaSecran /></footer>
     </div>
   )
 }
